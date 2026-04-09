@@ -11,6 +11,8 @@ import '../../../src/models/real_estate/real_estate_sale_model.dart';
 import '../../../src/providers/real_estate_provider.dart';
 import '../../../src/providers/customer_provider.dart';
 import '../../../src/models/real_estate/plot_model.dart';
+import '../../../src/models/real_estate/project_model.dart';
+import '../../../src/models/real_estate/dealer_model.dart';
 import '../../../src/services/real_estate_print_service.dart';
 import 'partner_payout_dialog.dart';
 import '../../screens/real_estate/receipt_preview_screen.dart';
@@ -38,6 +40,12 @@ class _AddSaleDialogState extends State<AddSaleDialog> {
   final _receiptNumberController = TextEditingController(); // Manual Receipt No
   final _installmentsCountController = TextEditingController(text: '12');
   final _semiAnnualBalloonPaymentController = TextEditingController(text: '0');
+  
+  // Search Controllers
+  final _projectSearchController = TextEditingController();
+  final _plotSearchController = TextEditingController();
+  final _customerSearchController = TextEditingController();
+  final _dealerSearchController = TextEditingController();
   
   double _currentPlotPrice = 0;
   double _remainingBalance = 0;
@@ -101,6 +109,10 @@ class _AddSaleDialogState extends State<AddSaleDialog> {
         }
         setState(() {
           _landownerRemarksController.text = widget.sale!.landownerPaymentRemarks ?? '';
+          _projectSearchController.text = widget.sale!.projectName ?? '';
+          _plotSearchController.text = '${widget.sale!.plotNumber} - Rs.${widget.sale!.totalPrice.toStringAsFixed(0)}';
+          _customerSearchController.text = widget.sale!.customerName ?? '';
+          _dealerSearchController.text = widget.sale!.dealerName ?? '';
         });
       }
     });
@@ -128,6 +140,10 @@ class _AddSaleDialogState extends State<AddSaleDialog> {
     _newLandownerSharePaymentController.dispose();
     _semiAnnualBalloonPaymentController.dispose();
     _landownerRemarksController.dispose();
+    _projectSearchController.dispose();
+    _plotSearchController.dispose();
+    _customerSearchController.dispose();
+    _dealerSearchController.dispose();
     super.dispose();
   }
 
@@ -312,31 +328,76 @@ class _AddSaleDialogState extends State<AddSaleDialog> {
                 // Project Selection First
                 Consumer<RealEstateProvider>(
                   builder: (context, provider, child) {
-                    final projectItems = provider.projects;
-                    // Ensure selected value exists in the current list to avoid crash
-                    final currentVal = projectItems.any((p) => p.id?.toString().toLowerCase().trim() == _selectedProjectId?.toString().toLowerCase().trim()) 
-                        ? projectItems.firstWhere((p) => p.id?.toString().toLowerCase().trim() == _selectedProjectId?.toString().toLowerCase().trim()).id 
-                        : null;
-                    
-                    return DropdownButtonFormField<String>(
-                      menuMaxHeight: 300,
-                      value: currentVal,
-                      dropdownColor: AppTheme.pureWhite,
-                      style: TextStyle(color: AppTheme.charcoalGray, fontWeight: FontWeight.bold, fontSize: context.bodyFontSize),
-                      decoration: InputDecoration(
-                        labelText: 'Select Project',
-                        prefixIcon: Icon(Icons.business, size: context.iconSize('medium')),
-                      ),
-                      items: projectItems.map((p) => DropdownMenuItem(value: p.id, child: Text(p.name))).toList(),
-                      onChanged: widget.sale != null ? null : (v) { // Disable if editing
+                    return Autocomplete<RealEstateProject>(
+                      displayStringForOption: (p) => p.name,
+                      initialValue: TextEditingValue(text: _projectSearchController.text),
+                      optionsBuilder: (textEditingValue) {
+                        if (textEditingValue.text.isEmpty) return provider.projects;
+                        return provider.projects.where((p) => p.name.toLowerCase().contains(textEditingValue.text.toLowerCase()));
+                      },
+                      onSelected: (p) {
                         setState(() {
-                          _selectedProjectId = v;
+                          _selectedProjectId = p.id;
+                          _projectSearchController.text = p.name;
                           _selectedPlotId = null;
+                          _plotSearchController.clear();
                           _currentPlotPrice = 0;
                           _remainingBalance = 0;
                         });
+                        provider.fetchPlots(projectId: p.id);
                       },
-                      validator: (v) => v == null ? 'Required' : null,
+                      fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+                        if (_projectSearchController.text.isNotEmpty && controller.text.isEmpty) {
+                          Future.microtask(() => controller.text = _projectSearchController.text);
+                        }
+                        return TextFormField(
+                          controller: controller,
+                          focusNode: focusNode,
+                          enabled: widget.sale == null,
+                          style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: AppTheme.charcoalGray),
+                          decoration: InputDecoration(
+                            labelText: 'Select Project',
+                            hintStyle: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: Colors.grey),
+                            prefixIcon: const Icon(Icons.business, color: AppTheme.primaryMaroon),
+                            border: const OutlineInputBorder(),
+                            contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+                          ),
+                        );
+                      },
+                      optionsViewBuilder: (context, onSelected, options) {
+                        return Align(
+                          alignment: Alignment.topLeft,
+                          child: Material(
+                            elevation: 8.0,
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(12),
+                            child: Theme(
+                              data: ThemeData.light(),
+                              child: Container(
+                                width: 450,
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: Colors.grey.shade300),
+                                ),
+                                constraints: const BoxConstraints(maxHeight: 300),
+                                child: ListView.builder(
+                                  padding: EdgeInsets.zero,
+                                  shrinkWrap: true,
+                                  itemCount: options.length,
+                                  itemBuilder: (context, index) {
+                                    final option = options.elementAt(index);
+                                    return ListTile(
+                                      title: Text(option.name, style: const TextStyle(color: Colors.black, fontWeight: FontWeight.w900, fontSize: 14)),
+                                      onTap: () => onSelected(option),
+                                    );
+                                  },
+                                ),
+                              ),
+                            ),
+                          ),
+                        );
+                      },
                     );
                   },
                 ),
@@ -346,51 +407,87 @@ class _AddSaleDialogState extends State<AddSaleDialog> {
                 Consumer<RealEstateProvider>(
                   builder: (context, provider, child) {
                     final filteredPlots = provider.plots.where((p) {
-                      final pId = p.id?.toString().toLowerCase().trim();
                       final sId = widget.sale?.plotId.toString().toLowerCase().trim();
                       final pProjId = p.projectId.toString().toLowerCase().trim();
                       final sProjId = _selectedProjectId?.toString().toLowerCase().trim();
-                      
-                      final isSelectedPlot = (sId != null && pId == sId);
+                      final isSelectedPlot = (sId != null && p.id == sId);
                       final isAvailable = (p.status == 'AVAILABLE' || p.status == 'RESERVED');
                       final projectMatches = (sProjId != null && pProjId == sProjId);
-                      
                       return (projectMatches && isAvailable) || isSelectedPlot;
                     }).toList();
                     
-                    // Safety check for plot value
-                    final currentPlotVal = filteredPlots.any((p) => p.id?.toString().toLowerCase().trim() == _selectedPlotId?.toString().toLowerCase().trim()) 
-                        ? filteredPlots.firstWhere((p) => p.id?.toString().toLowerCase().trim() == _selectedPlotId?.toString().toLowerCase().trim()).id 
-                        : null;
-
-                    return DropdownButtonFormField<String>(
-                      menuMaxHeight: 300,
-                      value: currentPlotVal,
-                      dropdownColor: AppTheme.pureWhite,
-                      style: TextStyle(color: AppTheme.charcoalGray, fontWeight: FontWeight.bold, fontSize: context.bodyFontSize),
-                      decoration: InputDecoration(
-                        labelText: 'Select Plot',
-                        prefixIcon: Icon(Icons.location_on, size: context.iconSize('medium')),
-                      ),
-                      items: filteredPlots.map((p) => DropdownMenuItem(
-                        value: p.id, 
-                        child: Text('${p.plotNumber} - Rs.${p.totalPrice.toStringAsFixed(0)} (${p.plotSize})')
-                      )).toList(),
-                      onChanged: widget.sale != null ? null : (v) { // Disable if editing
-                        final plot = filteredPlots.firstWhere((p) => p.id == v);
+                    return Autocomplete<RealEstatePlot>(
+                      displayStringForOption: (p) => '${p.plotNumber} - Rs.${p.totalPrice.toStringAsFixed(0)} (${p.plotSize})',
+                      initialValue: TextEditingValue(text: _plotSearchController.text),
+                      optionsBuilder: (textEditingValue) {
+                        if (textEditingValue.text.isEmpty) return filteredPlots;
+                        return filteredPlots.where((p) => p.plotNumber.toLowerCase().contains(textEditingValue.text.toLowerCase()));
+                      },
+                      onSelected: (plot) {
                         final project = provider.projects.firstWhere((p) => p.id == _selectedProjectId);
                         final dpPercent = project.downPaymentPercentage / 100.0;
-                        
                         setState(() {
-                          _selectedPlotId = v;
+                          _selectedPlotId = plot.id;
+                          _plotSearchController.text = '${plot.plotNumber} - Rs.${plot.totalPrice.toStringAsFixed(0)} (${plot.plotSize})';
                           _currentPlotPrice = plot.totalPrice;
-                          // Auto calculate based on project's down payment percentage
                           _downPaymentController.text = (plot.totalPrice * dpPercent).toStringAsFixed(0);
                           _receivedDownPaymentController.text = _downPaymentController.text;
                           _calculateRemaining(); 
                         });
                       },
-                      validator: (v) => v == null ? 'Required' : null,
+                      fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+                         if (_plotSearchController.text.isNotEmpty && controller.text.isEmpty) {
+                           Future.microtask(() => controller.text = _plotSearchController.text);
+                         }
+                         return TextFormField(
+                           controller: controller,
+                           focusNode: focusNode,
+                           enabled: widget.sale == null,
+                           style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: AppTheme.charcoalGray),
+                           decoration: InputDecoration(
+                             labelText: 'Select Plot',
+                             hintStyle: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: Colors.grey),
+                             prefixIcon: const Icon(Icons.location_on, color: AppTheme.primaryMaroon),
+                             border: const OutlineInputBorder(),
+                             contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+                           ),
+                         );
+                      },
+                      optionsViewBuilder: (context, onSelected, options) {
+                        return Align(
+                          alignment: Alignment.topLeft,
+                          child: Material(
+                            elevation: 8.0,
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(12),
+                            child: Theme(
+                              data: ThemeData.light(),
+                              child: Container(
+                                width: 450,
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: Colors.grey.shade300),
+                                ),
+                                constraints: const BoxConstraints(maxHeight: 300),
+                                child: ListView.builder(
+                                  padding: EdgeInsets.zero,
+                                  shrinkWrap: true,
+                                  itemCount: options.length,
+                                  itemBuilder: (context, index) {
+                                    final option = options.elementAt(index);
+                                    return ListTile(
+                                      title: Text('${option.plotNumber} - Rs.${option.totalPrice.toStringAsFixed(0)}', style: const TextStyle(color: Colors.black, fontWeight: FontWeight.w900, fontSize: 14)),
+                                      subtitle: Text(option.plotSize, style: const TextStyle(color: Colors.black54, fontSize: 12)),
+                                      onTap: () => onSelected(option),
+                                    );
+                                  },
+                                ),
+                              ),
+                            ),
+                          ),
+                        );
+                      },
                     );
                   },
                 ),
@@ -398,23 +495,71 @@ class _AddSaleDialogState extends State<AddSaleDialog> {
 
                 Consumer<CustomerProvider>(
                   builder: (context, provider, child) {
-                    final customerList = provider.allCustomers;
-                    final currentCustomerVal = customerList.any((c) => c.id?.toString().toLowerCase().trim() == _selectedCustomerId?.toString().toLowerCase().trim()) 
-                        ? customerList.firstWhere((c) => c.id?.toString().toLowerCase().trim() == _selectedCustomerId?.toString().toLowerCase().trim()).id 
-                        : null;
-                    
-                    return DropdownButtonFormField<String>(
-                      menuMaxHeight: 300,
-                      value: currentCustomerVal,
-                      dropdownColor: AppTheme.pureWhite,
-                      style: TextStyle(color: AppTheme.charcoalGray, fontWeight: FontWeight.bold, fontSize: context.bodyFontSize),
-                      decoration: InputDecoration(
-                        labelText: l10n.customers,
-                        prefixIcon: Icon(Icons.person, size: context.iconSize('medium')),
-                      ),
-                      items: customerList.map((c) => DropdownMenuItem(value: c.id, child: Text(c.name))).toList(),
-                      onChanged: (v) => setState(() => _selectedCustomerId = v),
-                      validator: (v) => v == null ? 'Required' : null,
+                    return Autocomplete<Customer>(
+                      displayStringForOption: (c) => c.name,
+                      initialValue: TextEditingValue(text: _customerSearchController.text),
+                      optionsBuilder: (textEditingValue) {
+                        if (textEditingValue.text.isEmpty) return provider.allCustomers;
+                        return provider.allCustomers.where((c) => c.name.toLowerCase().contains(textEditingValue.text.toLowerCase()));
+                      },
+                      onSelected: (customer) {
+                        setState(() {
+                          _selectedCustomerId = customer.id;
+                          _customerSearchController.text = customer.name;
+                        });
+                      },
+                      fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+                        if (_customerSearchController.text.isNotEmpty && controller.text.isEmpty) {
+                          Future.microtask(() => controller.text = _customerSearchController.text);
+                        }
+                        return TextFormField(
+                          controller: controller,
+                          focusNode: focusNode,
+                          style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: AppTheme.charcoalGray),
+                          decoration: InputDecoration(
+                            labelText: 'Select Customer',
+                            hintStyle: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: Colors.grey),
+                            prefixIcon: const Icon(Icons.person, color: AppTheme.primaryMaroon),
+                            border: const OutlineInputBorder(),
+                            contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+                          ),
+                        );
+                      },
+                      optionsViewBuilder: (context, onSelected, options) {
+                        return Align(
+                          alignment: Alignment.topLeft,
+                          child: Material(
+                            elevation: 8.0,
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(12),
+                            child: Theme(
+                              data: ThemeData.light(),
+                              child: Container(
+                                width: 450,
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: Colors.grey.shade300),
+                                ),
+                                constraints: const BoxConstraints(maxHeight: 300),
+                                child: ListView.builder(
+                                  padding: EdgeInsets.zero,
+                                  shrinkWrap: true,
+                                  itemCount: options.length,
+                                  itemBuilder: (context, index) {
+                                    final option = options.elementAt(index);
+                                    return ListTile(
+                                      title: Text(option.name, style: const TextStyle(color: Colors.black, fontWeight: FontWeight.w900, fontSize: 14)),
+                                      subtitle: Text(option.phone, style: const TextStyle(color: Colors.black54, fontSize: 12)),
+                                      onTap: () => onSelected(option),
+                                    );
+                                  },
+                                ),
+                              ),
+                            ),
+                          ),
+                        );
+                      },
                     );
                   },
                 ),
@@ -422,22 +567,70 @@ class _AddSaleDialogState extends State<AddSaleDialog> {
 
                 Consumer<RealEstateProvider>(
                   builder: (context, provider, child) {
-                    final dealerList = provider.dealers;
-                    final currentDealerVal = dealerList.any((d) => d.id?.toString().toLowerCase().trim() == _selectedDealerId?.toString().toLowerCase().trim()) 
-                        ? dealerList.firstWhere((d) => d.id?.toString().toLowerCase().trim() == _selectedDealerId?.toString().toLowerCase().trim()).id 
-                        : null;
-
-                    return DropdownButtonFormField<String>(
-                      menuMaxHeight: 300,
-                      value: currentDealerVal,
-                      dropdownColor: AppTheme.pureWhite,
-                      style: TextStyle(color: AppTheme.charcoalGray, fontWeight: FontWeight.bold, fontSize: context.bodyFontSize),
-                      decoration: InputDecoration(
-                        labelText: l10n.dealers,
-                        prefixIcon: Icon(Icons.handshake, size: context.iconSize('medium')),
-                      ),
-                      items: dealerList.map((d) => DropdownMenuItem(value: d.id, child: Text(d.name))).toList(),
-                      onChanged: (v) => setState(() => _selectedDealerId = v),
+                    return Autocomplete<RealEstateDealer>(
+                      displayStringForOption: (d) => d.name,
+                      initialValue: TextEditingValue(text: _dealerSearchController.text),
+                      optionsBuilder: (textEditingValue) {
+                        if (textEditingValue.text.isEmpty) return provider.dealers;
+                        return provider.dealers.where((d) => d.name.toLowerCase().contains(textEditingValue.text.toLowerCase()));
+                      },
+                      onSelected: (dealer) {
+                        setState(() {
+                          _selectedDealerId = dealer.id;
+                          _dealerSearchController.text = dealer.name;
+                        });
+                      },
+                      fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+                        if (_dealerSearchController.text.isNotEmpty && controller.text.isEmpty) {
+                          Future.microtask(() => controller.text = _dealerSearchController.text);
+                        }
+                        return TextFormField(
+                          controller: controller,
+                          focusNode: focusNode,
+                          style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: AppTheme.charcoalGray),
+                          decoration: InputDecoration(
+                            labelText: 'Select Dealer',
+                            hintStyle: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: Colors.grey),
+                            prefixIcon: const Icon(Icons.handshake, color: AppTheme.primaryMaroon),
+                            border: const OutlineInputBorder(),
+                            contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+                          ),
+                        );
+                      },
+                      optionsViewBuilder: (context, onSelected, options) {
+                        return Align(
+                          alignment: Alignment.topLeft,
+                          child: Material(
+                            elevation: 8.0,
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(12),
+                            child: Theme(
+                              data: ThemeData.light(),
+                              child: Container(
+                                width: 450,
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: Colors.grey.shade300),
+                                ),
+                                constraints: const BoxConstraints(maxHeight: 300),
+                                child: ListView.builder(
+                                  padding: EdgeInsets.zero,
+                                  shrinkWrap: true,
+                                  itemCount: options.length,
+                                  itemBuilder: (context, index) {
+                                    final option = options.elementAt(index);
+                                    return ListTile(
+                                      title: Text(option.name, style: const TextStyle(color: Colors.black, fontWeight: FontWeight.w900, fontSize: 14)),
+                                      onTap: () => onSelected(option),
+                                    );
+                                  },
+                                ),
+                              ),
+                            ),
+                          ),
+                        );
+                      },
                     );
                   },
                 ),

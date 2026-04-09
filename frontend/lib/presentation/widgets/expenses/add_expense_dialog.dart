@@ -26,6 +26,7 @@ class _AddExpenseDialogState extends State<AddExpenseDialog> with SingleTickerPr
   final _expenseController = TextEditingController();
   final _descriptionController = TextEditingController();
   final _amountController = TextEditingController();
+  final _plotSearchController = TextEditingController();
 
   String? _selectedWithdrawalBy;
   String? _selectedCategory;
@@ -65,6 +66,7 @@ class _AddExpenseDialogState extends State<AddExpenseDialog> with SingleTickerPr
     _expenseController.dispose();
     _descriptionController.dispose();
     _amountController.dispose();
+    _plotSearchController.dispose();
     super.dispose();
   }
 
@@ -357,8 +359,19 @@ class _AddExpenseDialogState extends State<AddExpenseDialog> with SingleTickerPr
                 });
               },
             ),
+
             if (_selectedCategory == 'LANDOWNER_PAYOUT' || _selectedCategory == 'COMMISSION_PAID') ...[
               SizedBox(height: context.cardPadding),
+              // Moved Search Bar Here - Outside any other complex nested logic
+              PremiumTextField(
+                label: 'SEARCH PLOT HERE',
+                hint: 'Type plot # or name...',
+                controller: _plotSearchController,
+                prefixIcon: Icons.search_rounded,
+                onChanged: (val) => setState(() {}),
+              ),
+              SizedBox(height: context.cardPadding),
+              
               Consumer<RealEstateProvider>(
                 builder: (context, reProvider, child) {
                   if (reProvider.sales.isEmpty) {
@@ -371,12 +384,23 @@ class _AddExpenseDialogState extends State<AddExpenseDialog> with SingleTickerPr
                       child: const Text('No plots/sales found.', style: TextStyle(color: Colors.red)),
                     );
                   }
+
+                  final searchQuery = _plotSearchController.text.toLowerCase();
+                  final filteredSales = reProvider.sales.where((sale) {
+                    final plotNumber = (sale.plotNumber ?? "").toLowerCase();
+                    final customerName = (sale.customerName ?? "").toLowerCase();
+                    final projectName = (sale.projectName ?? "").toLowerCase();
+                    return plotNumber.contains(searchQuery) || 
+                           customerName.contains(searchQuery) || 
+                           projectName.contains(searchQuery);
+                  }).toList();
+
                   return PremiumDropdownField<RealEstateSale>(
                     label: 'Select Plot / Sale',
                     hint: _selectedCategory == 'LANDOWNER_PAYOUT' ? 'Choose plot for payout' : 'Choose plot for commission',
-                    value: _selectedSale,
+                    value: filteredSales.contains(_selectedSale) ? _selectedSale : null,
                     prefixIcon: Icons.landscape_rounded,
-                    items: reProvider.sales.map((sale) => DropdownItem<RealEstateSale>(
+                    items: filteredSales.map((sale) => DropdownItem<RealEstateSale>(
                       value: sale,
                       label: '${sale.plotNumber ?? "No #"} - ${sale.customerName ?? "Unknown"} (${sale.projectName ?? "No Project"})',
                     )).toList(),

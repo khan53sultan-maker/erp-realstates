@@ -415,6 +415,8 @@ class _FinanceAddDialogState extends State<FinanceAddDialog> {
   String? _selectedProjectId;
   String? _selectedCategory;
   RealEstateSale? _selectedSale;
+  final TextEditingController _plotSearchController = TextEditingController();
+  final TextEditingController _projectSearchController = TextEditingController();
 
   @override
   void initState() {
@@ -445,6 +447,8 @@ class _FinanceAddDialogState extends State<FinanceAddDialog> {
       }
     }
 
+    _projectSearchController.text = widget.item?.projectName ?? 'General / Other';
+
     _amountController.addListener(() => setState(() {}));
   }
 
@@ -453,6 +457,8 @@ class _FinanceAddDialogState extends State<FinanceAddDialog> {
     _amountController.dispose();
     _descController.dispose();
     _dateController.dispose();
+    _plotSearchController.dispose();
+    _projectSearchController.dispose();
     super.dispose();
   }
 
@@ -479,7 +485,6 @@ class _FinanceAddDialogState extends State<FinanceAddDialog> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Custom Header
                 Container(
                   padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 24),
                   decoration: BoxDecoration(
@@ -521,7 +526,7 @@ class _FinanceAddDialogState extends State<FinanceAddDialog> {
                             items: types.map((t) => DropdownMenuItem(value: t, child: Text(t.replaceAll('_', ' ')))).toList(),
                              onChanged: (v) => setState(() {
                                _selectedCategory = v;
-                               _selectedSale = null; // Reset sale when category changes
+                               _selectedSale = null;
                              }),
                              validator: (v) => v == null ? 'Required' : null,
                            ),
@@ -531,173 +536,237 @@ class _FinanceAddDialogState extends State<FinanceAddDialog> {
                            (!widget.isIncome && (_selectedCategory == 'LANDOWNER_PAYOUT' || _selectedCategory == 'COMMISSION_PAID'))) ...[
                          const SizedBox(height: 20),
                          _buildDialogField(
-                           label: 'Select Plot / Sale',
+                           label: 'Search & Select Plot / Sale',
                            icon: Icons.landscape,
-                           child: DropdownButtonHideUnderline(
-                             child: DropdownButtonFormField<RealEstateSale>(
-                               value: _selectedSale,
-                               isExpanded: true,
-                               dropdownColor: Colors.white,
-                               style: const TextStyle(color: AppTheme.charcoalGray, fontWeight: FontWeight.bold, fontSize: 13),
-                               decoration: const InputDecoration(border: InputBorder.none, contentPadding: EdgeInsets.zero),
-                               items: provider.sales.map((s) => DropdownMenuItem(
-                                 value: s,
-                                 child: Text('${s.plotNumber ?? "N/A"} - ${s.customerName ?? "Unknown"} (${s.projectName ?? "General"})'),
-                               )).toList(),
-                               onChanged: (v) => setState(() {
+                           child: Autocomplete<RealEstateSale>(
+                             displayStringForOption: (s) => '${s.plotNumber ?? "N/A"} - ${s.customerName ?? "Unknown"}',
+                             initialValue: _selectedSale != null ? TextEditingValue(text: '${_selectedSale!.plotNumber ?? "N/A"} - ${_selectedSale!.customerName ?? "Unknown"}') : null,
+                             optionsBuilder: (textEditingValue) {
+                               if (textEditingValue.text.isEmpty) return provider.sales;
+                               return provider.sales.where((s) {
+                                 final plot = (s.plotNumber ?? "").toLowerCase();
+                                 final cust = (s.customerName ?? "").toLowerCase();
+                                 final proj = (s.projectName ?? "").toLowerCase();
+                                 final query = textEditingValue.text.toLowerCase();
+                                 return plot.contains(query) || cust.contains(query) || proj.contains(query);
+                               });
+                             },
+                             onSelected: (v) {
+                               setState(() {
                                  _selectedSale = v;
-                                 if (v != null) {
-                                   if (widget.isIncome) {
-                                      _descController.text = 'Commission received from Plot ${v.plotNumber} - ${v.customerName}';
-                                   } else {
-                                      _descController.text = _selectedCategory == 'LANDOWNER_PAYOUT'
-                                        ? 'Landowner payout for Plot ${v.plotNumber} - ${v.customerName}'
-                                        : 'Dealer commission for Plot ${v.plotNumber} - ${v.dealerName ?? v.customerName}';
-                                   }
-                                   if (v.projectId != null) {
-                                     _selectedProjectId = v.projectId;
-                                   }
+                                 if (widget.isIncome) {
+                                    _descController.text = 'Commission received from Plot ${v.plotNumber} - ${v.customerName}';
+                                 } else {
+                                    _descController.text = _selectedCategory == 'LANDOWNER_PAYOUT'
+                                      ? 'Landowner payout for Plot ${v.plotNumber} - ${v.customerName}'
+                                      : 'Dealer commission for Plot ${v.plotNumber} - ${v.dealerName ?? v.customerName}';
                                  }
-                               }),
-                               validator: (v) => v == null ? 'Required' : null,
-                             ),
+                                 if (v.projectId != null) {
+                                   _selectedProjectId = v.projectId;
+                                   _projectSearchController.text = v.projectName ?? 'General / Other';
+                                 }
+                               });
+                             },
+                             fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+                               return TextFormField(
+                                 controller: controller,
+                                 focusNode: focusNode,
+                                 style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: AppTheme.charcoalGray),
+                                 decoration: const InputDecoration(
+                                   hintText: 'Type plot # or name...',
+                                   hintStyle: TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: Colors.grey),
+                                   border: InputBorder.none,
+                                   focusedBorder: InputBorder.none,
+                                   enabledBorder: InputBorder.none,
+                                   isDense: true,
+                                   contentPadding: EdgeInsets.symmetric(vertical: 10),
+                                 ),
+                               );
+                             },
+                             optionsViewBuilder: (context, onSelected, options) {
+                               return Align(
+                                 alignment: Alignment.topLeft,
+                                 child: Material(
+                                   elevation: 8.0,
+                                   borderRadius: BorderRadius.circular(12),
+                                   child: Container(
+                                     width: 452,
+                                     constraints: const BoxConstraints(maxHeight: 250),
+                                     child: ListView.builder(
+                                       padding: EdgeInsets.zero,
+                                       shrinkWrap: true,
+                                       itemCount: options.length,
+                                       itemBuilder: (context, index) {
+                                         final option = options.elementAt(index);
+                                         return ListTile(
+                                           title: Text('${option.plotNumber ?? "N/A"} - ${option.customerName ?? "Unknown"}', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+                                           subtitle: Text(option.projectName ?? "General Project", style: const TextStyle(fontSize: 12)),
+                                           onTap: () => onSelected(option),
+                                         );
+                                       },
+                                     ),
+                                   ),
+                                 ),
+                               );
+                             },
                            ),
                          ),
-                        if (_selectedSale != null)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 8),
-                            child: Builder(
-                              builder: (context) {
-                                final amountTyped = double.tryParse(_amountController.text) ?? 0;
-                                final originalAmount = widget.item?.amount ?? 0.0;
-                                double liveRemaining = 0;
-                                String label = '';
-                                
-                                if (widget.isIncome) {
-                                  liveRemaining = _selectedSale!.landownerCommissionRemaining + originalAmount - amountTyped;
-                                  label = 'Live Remaining';
-                                } else {
-                                  if (_selectedCategory == 'LANDOWNER_PAYOUT') {
-                                    liveRemaining = _selectedSale!.landownerShareRemaining + originalAmount - amountTyped;
-                                    label = 'Landowner Remaining';
-                                  } else {
-                                    liveRemaining = _selectedSale!.dealerCommissionRemaining + originalAmount - amountTyped;
-                                    label = 'Dealer Remaining';
-                                  }
-                                }
-                                return Text(
-                                  '$label: Rs. ${NumberFormat.currency(symbol: '', decimalDigits: 0).format(liveRemaining)}',
-                                  style: TextStyle(
-                                    color: liveRemaining < 0 ? Colors.red : Colors.orange,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 13,
-                                  ),
-                                );
-                              },
-                            ),
-                          ),
-                      ],
-                      const SizedBox(height: 20),
-                      _buildDialogField(
-                        label: 'Project (Optional)',
-                        icon: Icons.business,
-                        child: DropdownButtonHideUnderline(
-                          child: DropdownButtonFormField<String?>(
-                            value: _selectedProjectId,
-                            dropdownColor: Colors.white,
-                            style: const TextStyle(color: AppTheme.charcoalGray, fontWeight: FontWeight.w900, fontSize: 16),
-                            decoration: const InputDecoration(border: InputBorder.none, contentPadding: EdgeInsets.zero),
-                            items: [
-                              const DropdownMenuItem(value: null, child: Text('General / Other')),
-                              ...provider.projects.map((p) => DropdownMenuItem(value: p.id, child: Text(p.name))),
-                            ],
-                            onChanged: (v) => setState(() => _selectedProjectId = v),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-                      _buildDialogField(
-                        label: 'Amount (PKR)',
-                        icon: Icons.payments,
-                        child: TextFormField(
-                          controller: _amountController,
-                          style: const TextStyle(color: Colors.black, fontWeight: FontWeight.w900, fontSize: 18),
-                          decoration: const InputDecoration(border: InputBorder.none, hintText: '0.00', contentPadding: EdgeInsets.zero),
-                          keyboardType: TextInputType.number,
-                          validator: (v) {
-                            if (v?.isEmpty == true) return 'Required';
-                            final amount = double.tryParse(v!);
-                            if (amount == null) return 'Invalid';
-                            if (_selectedSale != null) {
-                               final originalAmount = widget.item?.amount ?? 0.0;
-                               if (widget.isIncome && _selectedCategory == 'COMMISSION_RECEIVED') {
-                                  final maxPossible = _selectedSale!.landownerCommissionRemaining + originalAmount;
-                                  if (amount > maxPossible) {
-                                    return 'Exceeds remaining: ${maxPossible.toInt()}';
-                                  }
-                               } else if (!widget.isIncome) {
-                                 if (_selectedCategory == 'LANDOWNER_PAYOUT') {
-                                   final maxPossible = _selectedSale!.landownerShareRemaining + originalAmount;
-                                   if (amount > maxPossible) {
-                                     return 'Exceeds share (Max: ${maxPossible.toInt()})';
-                                   }
-                                 } else if (_selectedCategory == 'COMMISSION_PAID') {
-                                   final maxPossible = _selectedSale!.dealerCommissionRemaining + originalAmount;
-                                   if (amount > maxPossible) {
-                                     return 'Exceeds commission (Max: ${maxPossible.toInt()})';
-                                   }
-                                 }
-                               }
-                            }
-                            return null;
-                          },
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-                      _buildDialogField(
-                        label: 'Transaction Date',
-                        icon: Icons.calendar_month,
-                        child: TextFormField(
-                          controller: _dateController,
-                          style: const TextStyle(color: Colors.black, fontWeight: FontWeight.w900, fontSize: 16),
-                          decoration: const InputDecoration(border: InputBorder.none, contentPadding: EdgeInsets.zero),
-                          readOnly: true,
-                          onTap: () async {
-                            final picked = await showDatePicker(
-                              context: context,
-                              initialDate: DateTime.now(),
-                              firstDate: DateTime(2020),
-                              lastDate: DateTime(2030),
-                              builder: (context, child) {
-                                return Theme(
-                                  data: ThemeData.light().copyWith(
-                                    colorScheme: const ColorScheme.light(
-                                      primary: AppTheme.primaryMaroon,
-                                      onPrimary: Colors.white,
-                                      onSurface: Colors.black,
+                         if (_selectedSale != null)
+                           Padding(
+                             padding: const EdgeInsets.only(top: 8),
+                             child: Builder(
+                               builder: (context) {
+                                 final amountTyped = double.tryParse(_amountController.text) ?? 0;
+                                 final originalAmount = widget.item?.amount ?? 0.0;
+                                 double liveRemaining = widget.isIncome 
+                                     ? _selectedSale!.landownerCommissionRemaining + originalAmount - amountTyped
+                                     : (_selectedCategory == 'LANDOWNER_PAYOUT' 
+                                         ? _selectedSale!.landownerShareRemaining + originalAmount - amountTyped
+                                         : _selectedSale!.dealerCommissionRemaining + originalAmount - amountTyped);
+                                 String label = widget.isIncome ? 'Live Remaining' : (_selectedCategory == 'LANDOWNER_PAYOUT' ? 'Landowner Remaining' : 'Dealer Remaining');
+                                 
+                                 return Text(
+                                   '$label: Rs. ${NumberFormat.currency(symbol: '', decimalDigits: 0).format(liveRemaining)}',
+                                   style: TextStyle(color: liveRemaining < 0 ? Colors.red : Colors.orange, fontWeight: FontWeight.bold, fontSize: 13),
+                                 );
+                               },
+                             ),
+                           ),
+                       ],
+                       const SizedBox(height: 20),
+                       _buildDialogField(
+                         label: 'Project (Optional)',
+                         icon: Icons.business,
+                         child: Autocomplete<RealEstateProject>(
+                           displayStringForOption: (p) => p.name,
+                           initialValue: TextEditingValue(text: provider.projects.any((p) => p.id == _selectedProjectId) 
+                               ? provider.projects.firstWhere((p) => p.id == _selectedProjectId).name 
+                               : 'General / Other'),
+                           optionsBuilder: (textEditingValue) {
+                             final generalOption = RealEstateProject(name: 'General / Other', location: '', landownerName: '', totalPlots: 0, plotSizes: '');
+                             final list = [generalOption, ...provider.projects];
+                             if (textEditingValue.text.isEmpty) return list;
+                             return list.where((p) => p.name.toLowerCase().contains(textEditingValue.text.toLowerCase()));
+                           },
+                           onSelected: (p) {
+                             setState(() {
+                               _selectedProjectId = (p.name == 'General / Other') ? null : p.id;
+                             });
+                           },
+                           fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+                             // Sync the internal controller with our member controller
+                             if (controller.text != _projectSearchController.text && _projectSearchController.text != 'Search Project...') {
+                                Future.microtask(() => controller.text = _projectSearchController.text);
+                             }
+                             return TextFormField(
+                               controller: controller,
+                               focusNode: focusNode,
+                               style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: AppTheme.charcoalGray),
+                               decoration: const InputDecoration(
+                                 hintText: 'Search Project...',
+                                 hintStyle: TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: Colors.grey),
+                                 border: InputBorder.none,
+                                 focusedBorder: InputBorder.none,
+                                 enabledBorder: InputBorder.none,
+                                 isDense: true,
+                                 contentPadding: EdgeInsets.symmetric(vertical: 10),
+                               ),
+                             );
+                           },
+                           optionsViewBuilder: (context, onSelected, options) {
+                             return Align(
+                                alignment: Alignment.topLeft,
+                                child: Material(
+                                  elevation: 8.0,
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: Container(
+                                    width: 452,
+                                    constraints: const BoxConstraints(maxHeight: 200),
+                                    child: ListView.builder(
+                                      padding: EdgeInsets.zero,
+                                      shrinkWrap: true,
+                                      itemCount: options.length,
+                                      itemBuilder: (context, index) {
+                                        final RealEstateProject option = options.elementAt(index);
+                                        return ListTile(
+                                          title: Text(option.name, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+                                          onTap: () => onSelected(option),
+                                        );
+                                      },
                                     ),
                                   ),
-                                  child: child!,
-                                );
-                              },
-                            );
-                            if (picked != null) {
-                              setState(() => _dateController.text = DateFormat('yyyy-MM-dd').format(picked));
-                            }
-                          },
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-                      _buildDialogField(
-                        label: 'Description / Remarks',
-                        icon: Icons.notes,
-                        child: TextFormField(
-                          controller: _descController,
-                          style: const TextStyle(color: Colors.black, fontWeight: FontWeight.w600, fontSize: 15),
-                          decoration: const InputDecoration(border: InputBorder.none, hintText: 'Add details here...', contentPadding: EdgeInsets.zero),
-                          maxLines: 2,
-                        ),
-                      ),
+                                ),
+                              );
+                           },
+                         ),
+                       ),
+                       const SizedBox(height: 20),
+                       _buildDialogField(
+                         label: 'Amount (PKR)',
+                         icon: Icons.payments,
+                         child: TextFormField(
+                           controller: _amountController,
+                           style: const TextStyle(color: Colors.black, fontWeight: FontWeight.w900, fontSize: 18),
+                           decoration: const InputDecoration(border: InputBorder.none, hintText: '0.00', contentPadding: EdgeInsets.symmetric(vertical: 10)),
+                           keyboardType: TextInputType.number,
+                           validator: (v) {
+                             if (v?.isEmpty == true) return 'Required';
+                             final amount = double.tryParse(v!);
+                             if (amount == null) return 'Invalid';
+                             if (_selectedSale != null) {
+                                final originalAmount = widget.item?.amount ?? 0.0;
+                                if (widget.isIncome && _selectedCategory == 'COMMISSION_RECEIVED') {
+                                   final maxPossible = _selectedSale!.landownerCommissionRemaining + originalAmount;
+                                   if (amount > maxPossible) return 'Exceeds remaining: ${maxPossible.toInt()}';
+                                } else if (!widget.isIncome) {
+                                  if (_selectedCategory == 'LANDOWNER_PAYOUT') {
+                                    final maxPossible = _selectedSale!.landownerShareRemaining + originalAmount;
+                                    if (amount > maxPossible) return 'Exceeds share (Max: ${maxPossible.toInt()})';
+                                  } else if (_selectedCategory == 'COMMISSION_PAID') {
+                                    final maxPossible = _selectedSale!.dealerCommissionRemaining + originalAmount;
+                                    if (amount > maxPossible) return 'Exceeds commission (Max: ${maxPossible.toInt()})';
+                                  }
+                                }
+                             }
+                             return null;
+                           },
+                         ),
+                       ),
+                       const SizedBox(height: 20),
+                       _buildDialogField(
+                         label: 'Transaction Date',
+                         icon: Icons.calendar_month,
+                         child: TextFormField(
+                           controller: _dateController,
+                           style: const TextStyle(color: Colors.black, fontWeight: FontWeight.w900, fontSize: 16),
+                           decoration: const InputDecoration(border: InputBorder.none, contentPadding: EdgeInsets.zero),
+                           readOnly: true,
+                           onTap: () async {
+                             final picked = await showDatePicker(
+                               context: context,
+                               initialDate: DateTime.now(),
+                               firstDate: DateTime(2020),
+                               lastDate: DateTime(2030),
+                               builder: (context, child) => Theme(
+                                 data: ThemeData.light().copyWith(colorScheme: const ColorScheme.light(primary: AppTheme.primaryMaroon, onPrimary: Colors.white, onSurface: Colors.black)),
+                                 child: child!,
+                               ),
+                             );
+                             if (picked != null) setState(() => _dateController.text = DateFormat('yyyy-MM-dd').format(picked));
+                           },
+                         ),
+                       ),
+                       const SizedBox(height: 20),
+                       _buildDialogField(
+                         label: 'Description / Remarks',
+                         icon: Icons.notes,
+                         child: TextFormField(
+                           controller: _descController,
+                           style: const TextStyle(color: Colors.black, fontWeight: FontWeight.w600, fontSize: 15),
+                           decoration: const InputDecoration(border: InputBorder.none, hintText: 'Add details here...', contentPadding: EdgeInsets.symmetric(vertical: 10)),
+                           maxLines: 2,
+                         ),
+                       ),
                     ],
                   ),
                 ),
@@ -743,8 +812,8 @@ class _FinanceAddDialogState extends State<FinanceAddDialog> {
                                 success = widget.item == null ? await provider.addExpense(expense) : await provider.updateExpense(widget.item.id!, expense);
                               }
                               if (success && mounted) {
-                                provider.fetchDashboardData(); // Refresh dashboard
-                                provider.fetchSales(); // Refresh plots/sales to update remaining balances
+                                provider.fetchDashboardData();
+                                provider.fetchSales();
                                 Navigator.pop(context);
                               }
                             }
@@ -772,7 +841,7 @@ class _FinanceAddDialogState extends State<FinanceAddDialog> {
 
   Widget _buildDialogField({required String label, required IconData icon, required Widget child}) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
         color: Colors.grey[50],
         borderRadius: BorderRadius.circular(12),

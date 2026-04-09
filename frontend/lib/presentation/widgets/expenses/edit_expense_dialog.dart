@@ -28,6 +28,7 @@ class _EditExpenseDialogState extends State<EditExpenseDialog> with SingleTicker
   late TextEditingController _expenseController;
   late TextEditingController _descriptionController;
   late TextEditingController _amountController;
+  final _plotSearchController = TextEditingController();
 
   late String _selectedWithdrawalBy;
   late bool _isPersonal;
@@ -80,6 +81,7 @@ class _EditExpenseDialogState extends State<EditExpenseDialog> with SingleTicker
     _expenseController.dispose();
     _descriptionController.dispose();
     _amountController.dispose();
+    _plotSearchController.dispose();
     super.dispose();
   }
 
@@ -350,26 +352,55 @@ class _EditExpenseDialogState extends State<EditExpenseDialog> with SingleTicker
                       child: const Text('No plots/sales found.', style: TextStyle(color: Colors.red)),
                     );
                   }
-                  return PremiumDropdownField<RealEstateSale>(
-                    label: 'Select Plot / Sale',
-                    hint: _expenseController.text == 'LANDOWNER_PAYOUT' ? 'Choose plot for payout' : 'Choose plot for commission',
-                    value: _selectedSale,
-                    prefixIcon: Icons.landscape_rounded,
-                    items: reProvider.sales.map((sale) => DropdownItem<RealEstateSale>(
-                      value: sale,
-                      label: '${sale.plotNumber ?? "No #"} - ${sale.customerName ?? "Unknown"} (${sale.projectName ?? "No Project"})',
-                    )).toList(),
-                    onChanged: (sale) {
-                      setState(() {
-                        _selectedSale = sale;
-                        if (sale != null) {
-                          _descriptionController.text = _expenseController.text == 'LANDOWNER_PAYOUT'
-                            ? 'Landowner payout for Plot ${sale.plotNumber} - ${sale.customerName}'
-                            : 'Dealer commission for Plot ${sale.plotNumber} - ${sale.dealerName ?? sale.customerName}';
-                        }
-                      });
-                    },
-                    validator: (val) => val == null ? 'Please select a sale' : null,
+
+                  // Filter sales based on search query
+                  final searchQuery = _plotSearchController.text.toLowerCase();
+                  final filteredSales = reProvider.sales.where((sale) {
+                    final plotNumber = (sale.plotNumber ?? "").toLowerCase();
+                    final customerName = (sale.customerName ?? "").toLowerCase();
+                    final projectName = (sale.projectName ?? "").toLowerCase();
+                    return plotNumber.contains(searchQuery) || 
+                           customerName.contains(searchQuery) || 
+                           projectName.contains(searchQuery);
+                  }).toList();
+
+                  // Ensure current selected sale is in the filtered list if it matches
+                  // or just let it be null if filtered out, but the dropdown usually needs the current value to be in its items.
+                  // If _selectedSale is not in filteredSales but it's not null, we should probably add it back or show others.
+                  // For now, simple filter is enough.
+
+                  return Column(
+                    children: [
+                      PremiumTextField(
+                        label: 'Search Plot/Sale',
+                        hint: 'Type plot #, customer or project...',
+                        controller: _plotSearchController,
+                        prefixIcon: Icons.search_rounded,
+                        onChanged: (val) => setState(() {}),
+                      ),
+                      SizedBox(height: context.cardPadding),
+                      PremiumDropdownField<RealEstateSale>(
+                        label: 'Select Plot / Sale',
+                        hint: _expenseController.text == 'LANDOWNER_PAYOUT' ? 'Choose plot for payout' : 'Choose plot for commission',
+                        value: filteredSales.contains(_selectedSale) ? _selectedSale : null,
+                        prefixIcon: Icons.landscape_rounded,
+                        items: filteredSales.map((sale) => DropdownItem<RealEstateSale>(
+                          value: sale,
+                          label: '${sale.plotNumber ?? "No #"} - ${sale.customerName ?? "Unknown"} (${sale.projectName ?? "No Project"})',
+                        )).toList(),
+                        onChanged: (sale) {
+                          setState(() {
+                            _selectedSale = sale;
+                            if (sale != null) {
+                              _descriptionController.text = _expenseController.text == 'LANDOWNER_PAYOUT'
+                                ? 'Landowner payout for Plot ${sale.plotNumber} - ${sale.customerName}'
+                                : 'Dealer commission for Plot ${sale.plotNumber} - ${sale.dealerName ?? sale.customerName}';
+                            }
+                          });
+                        },
+                        validator: (val) => val == null ? 'Please select a sale' : null,
+                      ),
+                    ],
                   );
                 },
               ),
