@@ -1,0 +1,9 @@
+--- Income Records ---
+Total Income Records: 2
+Type: 'COMMISSION_RECEIVED', Amount: 54000.00, Project: umer house
+Type: 'COMMISSION_RECEIVED', Amount: 54000.00, Project: umer house
+
+--- Expense Records ---
+Total Expense Records: 2
+Category: 'COMMISSION_PAID', Amount: 20000.00, Project: umer house
+Category: 'COMMISSION_PAID', Amount: 20000.00, Project: umer house

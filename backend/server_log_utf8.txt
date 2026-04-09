@@ -1,0 +1,20 @@
+﻿python : INFO 2026-02-22 19:58:50,124 autoreload Watching for file changes with StatReloader
+At line:1 char:1
++ python manage.py runserver > server_log.txt 2>&1
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (INFO 2026-02-22...th StatReloader:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+C:\Users\mirfa\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\rest_framework\fields.py:992: UserWarning: 
+min_value should be an integer or Decimal instance.
+  warnings.warn("min_value should be an integer or Decimal instance.")
+INFO 2026-02-22 20:01:01,845 autoreload D:\R_Technologies_Intership\pos-realstates-main\backend\core\settings.py 
+changed, reloading.
+Performing system checks...
+
+System check identified no issues (0 silenced).
+February 22, 2026 - 19:58:57
+Django version 6.0.2, using settings 'core.settings'
+Starting ASGI/Daphne version 4.2.1 development server at http://127.0.0.1:8000/
+Quit the server with CTRL-BREAK.
+CommandError: You have not set ASGI_APPLICATION, which is needed to run the server.
