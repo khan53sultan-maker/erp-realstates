@@ -10,10 +10,6 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RemoveIndex(
-            model_name='product',
-            name='product_reorder_idx',
-        ),
         migrations.AlterField(
             model_name='product',
             name='reorder_point',
