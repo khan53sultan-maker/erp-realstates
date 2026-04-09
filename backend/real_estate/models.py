@@ -4,6 +4,11 @@ from django.conf import settings
 from django.utils import timezone
 from decimal import Decimal
 
+
+def _today():
+    """Return today's date. Used as a default for DateFields (lambdas are not serializable by Django migrations)."""
+    return timezone.now().date()
+
 class Project(models.Model):
     """Module A: Project Management"""
     STATUS_CHOICES = [
@@ -134,7 +139,7 @@ class RealEstateSale(models.Model):
     installments_count = models.PositiveIntegerField(default=0)
     installment_amount = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'))
     
-    sale_date = models.DateField(default=lambda: timezone.now().date())
+    sale_date = models.DateField(default=_today)
 
     # Commission Configuration
     DEALER_COMMISSION_TYPE_CHOICES = [
@@ -497,7 +502,7 @@ class DealerPayment(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     sale = models.ForeignKey(RealEstateSale, on_delete=models.CASCADE, related_name='dealer_payments')
     amount = models.DecimalField(max_digits=12, decimal_places=2)
-    date = models.DateField(default=lambda: timezone.now().date())
+    date = models.DateField(default=_today)
     remarks = models.CharField(max_length=255, blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -512,7 +517,7 @@ class LandownerPayment(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     sale = models.ForeignKey(RealEstateSale, on_delete=models.CASCADE, related_name='landowner_payments')
     amount = models.DecimalField(max_digits=12, decimal_places=2)
-    date = models.DateField(default=lambda: timezone.now().date())
+    date = models.DateField(default=_today)
     remarks = models.CharField(max_length=255, blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -527,7 +532,7 @@ class LandownerCommissionPayment(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     sale = models.ForeignKey(RealEstateSale, on_delete=models.CASCADE, related_name='landowner_commission_history')
     amount = models.DecimalField(max_digits=12, decimal_places=2)
-    date = models.DateField(default=lambda: timezone.now().date())
+    date = models.DateField(default=_today)
     remarks = models.CharField(max_length=255, blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -549,7 +554,7 @@ class RealEstateIncome(models.Model):
     project = models.ForeignKey(Project, on_delete=models.SET_NULL, null=True, blank=True, related_name='incomes')
     income_type = models.CharField(max_length=50, choices=INCOME_TYPE_CHOICES)
     amount = models.DecimalField(max_digits=15, decimal_places=2)
-    date = models.DateField(default=lambda: timezone.now().date())
+    date = models.DateField(default=_today)
     description = models.TextField(blank=True, null=True)
     sale = models.ForeignKey(RealEstateSale, on_delete=models.SET_NULL, null=True, blank=True, related_name='income_entries')
     
@@ -608,7 +613,7 @@ class RealEstateExpense(models.Model):
     project = models.ForeignKey(Project, on_delete=models.SET_NULL, null=True, blank=True, related_name='expenses')
     category = models.CharField(max_length=50, choices=EXPENSE_CATEGORY_CHOICES)
     amount = models.DecimalField(max_digits=12, decimal_places=2)
-    date = models.DateField(default=lambda: timezone.now().date())
+    date = models.DateField(default=_today)
     description = models.TextField(blank=True, null=True)
     sale = models.ForeignKey(RealEstateSale, on_delete=models.SET_NULL, null=True, blank=True, related_name='payout_expenses')
     
@@ -726,7 +731,7 @@ class InstallmentPayment(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     installment = models.ForeignKey(Installment, on_delete=models.CASCADE, related_name='payment_history')
     amount = models.DecimalField(max_digits=12, decimal_places=2)
-    payment_date = models.DateField(default=lambda: timezone.now().date())
+    payment_date = models.DateField(default=_today)
     receipt_number = models.CharField(max_length=50, blank=True, null=True)
     remarks = models.CharField(max_length=255, blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
