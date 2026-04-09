@@ -8,18 +8,33 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.AddField(
-            model_name='product',
-            name='reorder_point',
-            field=models.PositiveIntegerField(
-                default=10,
-                help_text='Minimum quantity before reorder alert'
-            ),
-        ),
-        migrations.AddIndex(
-            model_name='product',
-            index=models.Index(fields=['reorder_point'], name='product_reorder_idx'),
+        migrations.RunSQL(
+            # Forward: Add column only if it doesn't already exist
+            sql="""
+                DO $$
+                BEGIN
+                    IF NOT EXISTS (
+                        SELECT 1 FROM information_schema.columns
+                        WHERE table_name='product' AND column_name='reorder_point'
+                    ) THEN
+                        ALTER TABLE product ADD COLUMN reorder_point integer NOT NULL DEFAULT 10;
+                    END IF;
+                END $$;
+
+                DO $$
+                BEGIN
+                    IF NOT EXISTS (
+                        SELECT 1 FROM pg_indexes
+                        WHERE tablename='product' AND indexname='product_reorder_idx'
+                    ) THEN
+                        CREATE INDEX product_reorder_idx ON product (reorder_point);
+                    END IF;
+                END $$;
+            """,
+            # Reverse: Remove column and index if exists
+            reverse_sql="""
+                DROP INDEX IF EXISTS product_reorder_idx;
+                ALTER TABLE product DROP COLUMN IF EXISTS reorder_point;
+            """,
         ),
     ]
-
-
