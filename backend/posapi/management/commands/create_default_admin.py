@@ -7,17 +7,17 @@ class Command(BaseCommand):
 
     def handle(self, *args, **kwargs):
         User = get_user_model()
-        
+
         # Only create if no superuser exists
         if not User.objects.filter(is_superuser=True).exists():
             User.objects.create_superuser(
-                username='admin',
+                email='admin@metabrass.com',
                 password='Admin@1234',
-                email='admin@metabrass.com'
+                full_name='Admin User',
             )
             self.stdout.write(self.style.SUCCESS(
                 '✅ Default admin user created!\n'
-                '   Username: admin\n'
+                '   Email: admin@metabrass.com\n'
                 '   Password: Admin@1234\n'
                 '   ⚠️  Please change password after first login!'
             ))
