@@ -124,17 +124,31 @@ class _AddPlotDialogState extends State<AddPlotDialog> {
         status: widget.plot?.status ?? 'AVAILABLE',
       );
       
-      bool success;
-      if (widget.plot == null) {
-        success = await context.read<RealEstateProvider>().addPlot(plot);
-      } else {
-        success = await context.read<RealEstateProvider>().updatePlot(widget.plot!.id!, plot);
-      }
+      final messenger = ScaffoldMessenger.of(context);
+      final navigator = Navigator.of(context);
+      final provider = context.read<RealEstateProvider>();
 
-      if (success && mounted) {
-        Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(widget.plot == null ? 'Plot added successfully' : 'Plot updated successfully'), backgroundColor: Colors.green),
+      try {
+        bool success;
+        if (widget.plot == null) {
+          success = await provider.addPlot(plot);
+        } else {
+          success = await provider.updatePlot(widget.plot!.id!, plot);
+        }
+
+        if (success) {
+          navigator.pop();
+          messenger.showSnackBar(
+            SnackBar(content: Text(widget.plot == null ? 'Plot added successfully' : 'Plot updated successfully'), backgroundColor: Colors.green),
+          );
+        } else {
+          messenger.showSnackBar(
+            SnackBar(content: Text(provider.errorMessage ?? 'Failed to save plot'), backgroundColor: Colors.red),
+          );
+        }
+      } catch (e) {
+        messenger.showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
         );
       }
     }

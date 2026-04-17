@@ -7,6 +7,7 @@ import '../../../src/utils/responsive_breakpoints.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../widgets/globals/text_button.dart';
 import '../../widgets/globals/text_field.dart';
+import '../../../main.dart';
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
@@ -80,82 +81,72 @@ class _SignupScreenState extends State<SignupScreen> {
         _acceptTerms,
       );
 
-      if (mounted) {
-        if (success) {
-          // ✅ Signup successful - Show success message safely
-          final scaffoldMessenger = ScaffoldMessenger.maybeOf(context);
-          if (scaffoldMessenger != null) {
-            scaffoldMessenger.showSnackBar(
-              SnackBar(
-                content: Row(
-                  children: [
-                    Icon(
-                      Icons.check_circle_rounded,
-                      color: AppTheme.pureWhite,
-                      size: context.iconSize('medium'),
-                    ),
-                    SizedBox(width: context.smallPadding),
-                    Expanded(
-                      child: Text(
-                        l10n.accountCreatedSuccessfully,
-                        style: TextStyle(fontSize: context.captionFontSize),
-                      ),
-                    ),
-                  ],
+      if (success) {
+        // ✅ Signup successful - Show success message safely
+        HiBlankitsApp.scaffoldMessengerKey.currentState?.showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                Icon(
+                  Icons.check_circle_rounded,
+                  color: AppTheme.pureWhite,
+                  size: 24,
                 ),
-                backgroundColor: Colors.green,
-                behavior: SnackBarBehavior.floating,
-                duration: const Duration(seconds: 3),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(context.borderRadius('medium')),
+                SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Account created successfully!',
+                    style: TextStyle(fontSize: 12),
+                  ),
                 ),
-                margin: EdgeInsets.all(context.mainPadding),
-              ),
-            );
-          }
+              ],
+            ),
+            backgroundColor: Colors.green,
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 3),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            margin: const EdgeInsets.all(16),
+          ),
+        );
 
-          // ✅ Navigate to login screen after delay
-          Future.delayed(const Duration(milliseconds: 1500), () {
-            if (mounted) {
-              Navigator.of(context).pushReplacementNamed(
-                '/login',
-                arguments: {'email': userEmail}, // Pass email to pre-fill
-              );
-            }
-          });
-        } else {
-          // ❌ Signup failed - Show error snackbar safely
-          final scaffoldMessenger = ScaffoldMessenger.maybeOf(context);
-          if (scaffoldMessenger != null) {
-            scaffoldMessenger.showSnackBar(
-              SnackBar(
-                content: Row(
-                  children: [
-                    Icon(
-                      Icons.error_outline,
-                      color: AppTheme.pureWhite,
-                      size: context.iconSize('medium'),
-                    ),
-                    SizedBox(width: context.smallPadding),
-                    Expanded(
-                      child: Text(
-                        authProvider.errorMessage ?? l10n.registrationFailedMessage,
-                        style: TextStyle(fontSize: context.captionFontSize),
-                      ),
-                    ),
-                  ],
+        // ✅ Navigate to login screen after delay
+        Future.delayed(const Duration(milliseconds: 1500), () {
+          HiBlankitsApp.navigatorKey.currentState?.pushReplacementNamed(
+            '/login',
+            arguments: {'email': userEmail}, // Pass email to pre-fill
+          );
+        });
+      } else {
+        // ❌ Signup failed - Show error snackbar safely
+        HiBlankitsApp.scaffoldMessengerKey.currentState?.showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                Icon(
+                  Icons.error_outline,
+                  color: AppTheme.pureWhite,
+                  size: 24,
                 ),
-                backgroundColor: Colors.red,
-                behavior: SnackBarBehavior.floating,
-                duration: const Duration(seconds: 4),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(context.borderRadius('medium')),
+                SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    authProvider.errorMessage ?? 'Registration failed',
+                    style: TextStyle(fontSize: 12),
+                  ),
                 ),
-                margin: EdgeInsets.all(context.mainPadding),
-              ),
-            );
-          }
-        }
+              ],
+            ),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 4),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            margin: const EdgeInsets.all(16),
+          ),
+        );
       }
     }
   }

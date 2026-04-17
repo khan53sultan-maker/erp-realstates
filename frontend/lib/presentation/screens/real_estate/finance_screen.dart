@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../../../src/providers/real_estate_provider.dart';
+import '../../../src/providers/auth_provider.dart';
 import '../../../src/theme/app_theme.dart';
 import '../../../src/models/real_estate/real_estate_finance_models.dart';
 import '../../../src/models/real_estate/project_model.dart';
@@ -81,6 +82,11 @@ class _RealEstateFinanceScreenState extends State<RealEstateFinanceScreen> with 
         final totalIncome = provider.incomes.fold(0.0, (sum, item) => sum + item.amount);
         final totalExpense = provider.expenses.fold(0.0, (sum, item) => sum + item.amount);
         final netProfit = totalIncome - totalExpense;
+
+        final authProvider = context.read<AuthProvider>();
+        if (authProvider.currentUser?.role == 'MANAGER') {
+          return const SizedBox.shrink();
+        }
         
         final todayIncome = provider.incomes.where((i) => i.date == todayStr).fold(0.0, (sum, item) => sum + item.amount);
         final todayExpense = provider.expenses.where((e) => e.date == todayStr).fold(0.0, (sum, item) => sum + item.amount);
@@ -787,34 +793,56 @@ class _FinanceAddDialogState extends State<FinanceAddDialog> {
                         child: ElevatedButton(
                           onPressed: () async {
                             if (_formKey.currentState?.validate() == true) {
-                              bool success;
-                              if (widget.isIncome) {
-                                final income = RealEstateIncome(
-                                  id: (widget.item as RealEstateIncome?)?.id,
-                                  incomeType: _selectedCategory!,
-                                  amount: double.parse(_amountController.text),
-                                  date: _dateController.text,
-                                  projectId: _selectedProjectId,
-                                  description: _descController.text,
-                                  saleId: _selectedSale?.id,
+                              final messenger = ScaffoldMessenger.of(context);
+                              final navigator = Navigator.of(context);
+
+                              try {
+                                bool success;
+                                if (widget.isIncome) {
+                                  final income = RealEstateIncome(
+                                    id: (widget.item as RealEstateIncome?)?.id,
+                                    incomeType: _selectedCategory!,
+                                    amount: double.parse(_amountController.text),
+                                    date: _dateController.text,
+                                    projectId: _selectedProjectId,
+                                    description: _descController.text,
+                                    saleId: _selectedSale?.id,
+                                  );
+                                  success = widget.item == null ? await provider.addIncome(income) : await provider.updateIncome(widget.item.id!, income);
+                                } else {
+                                  final expense = RealEstateExpense(
+                                    id: (widget.item as RealEstateExpense?)?.id,
+                                    category: _selectedCategory!,
+                                    amount: double.parse(_amountController.text),
+                                    date: _dateController.text,
+                                    projectId: _selectedProjectId,
+                                    description: _descController.text,
+                                    saleId: _selectedSale?.id,
+                                  );
+                                  success = widget.item == null ? await provider.addExpense(expense) : await provider.updateExpense(widget.item.id!, expense);
+                                }
+                                if (success) {
+                                  provider.fetchDashboardData();
+                                  provider.fetchSales();
+                                  navigator.pop();
+                                  messenger.showSnackBar(
+                                    SnackBar(
+                                      content: Text('${widget.item == null ? "Entry saved" : "Entry updated"} successfully'),
+                                      backgroundColor: Colors.green,
+                                    ),
+                                  );
+                                } else {
+                                  messenger.showSnackBar(
+                                    SnackBar(
+                                      content: Text(provider.errorMessage ?? 'Failed to save entry'),
+                                      backgroundColor: Colors.red,
+                                    ),
+                                  );
+                                }
+                              } catch (e) {
+                                messenger.showSnackBar(
+                                  SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
                                 );
-                                success = widget.item == null ? await provider.addIncome(income) : await provider.updateIncome(widget.item.id!, income);
-                              } else {
-                                final expense = RealEstateExpense(
-                                  id: (widget.item as RealEstateExpense?)?.id,
-                                  category: _selectedCategory!,
-                                  amount: double.parse(_amountController.text),
-                                  date: _dateController.text,
-                                  projectId: _selectedProjectId,
-                                  description: _descController.text,
-                                  saleId: _selectedSale?.id,
-                                );
-                                success = widget.item == null ? await provider.addExpense(expense) : await provider.updateExpense(widget.item.id!, expense);
-                              }
-                              if (success && mounted) {
-                                provider.fetchDashboardData();
-                                provider.fetchSales();
-                                Navigator.pop(context);
                               }
                             }
                           },

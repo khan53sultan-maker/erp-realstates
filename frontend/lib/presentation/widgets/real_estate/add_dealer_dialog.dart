@@ -124,17 +124,31 @@ class _AddDealerDialogState extends State<AddDealerDialog> {
         type: _type,
       );
       
-      bool success;
-      if (widget.dealer == null) {
-        success = await context.read<RealEstateProvider>().addDealer(dealer);
-      } else {
-        success = await context.read<RealEstateProvider>().updateDealer(widget.dealer!.id!, dealer);
-      }
+      final messenger = ScaffoldMessenger.of(context);
+      final navigator = Navigator.of(context);
+      final provider = context.read<RealEstateProvider>();
 
-      if (success && mounted) {
-        Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(widget.dealer == null ? 'Dealer added successfully' : 'Dealer updated successfully'), backgroundColor: Colors.green),
+      try {
+        bool success;
+        if (widget.dealer == null) {
+          success = await provider.addDealer(dealer);
+        } else {
+          success = await provider.updateDealer(widget.dealer!.id!, dealer);
+        }
+
+        if (success) {
+          navigator.pop();
+          messenger.showSnackBar(
+            SnackBar(content: Text(widget.dealer == null ? 'Dealer added successfully' : 'Dealer updated successfully'), backgroundColor: Colors.green),
+          );
+        } else {
+          messenger.showSnackBar(
+            SnackBar(content: Text(provider.errorMessage ?? 'Failed to save dealer'), backgroundColor: Colors.red),
+          );
+        }
+      } catch (e) {
+        messenger.showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
         );
       }
     }

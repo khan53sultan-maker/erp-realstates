@@ -107,45 +107,107 @@ class _AddCustomerDialogState extends State<AddCustomerDialog>
     if (_formKey.currentState?.validate() ?? false) {
       final provider = Provider.of<CustomerProvider>(context, listen: false);
 
+      final scaffoldMessenger = ScaffoldMessenger.of(context);
+      final navigator = Navigator.of(context);
 
-      final success = await provider.addCustomer(
-        name: _nameController.text.trim(),
-        phone: _phoneController.text.trim(),
-        email: _emailController.text.trim().isEmpty
-            ? null
-            : _emailController.text.trim(),
-        address: _addressController.text.trim().isEmpty
-            ? null
-            : _addressController.text.trim(),
-        city: _cityController.text.trim().isEmpty
-            ? null
-            : _cityController.text.trim(),
-        country: _countryController.text.trim().isEmpty
-            ? null
-            : _countryController.text.trim(),
-        customerType: _selectedCustomerType,
-        businessName: _showBusinessFields && _businessNameController.text.trim().isNotEmpty
-            ? _businessNameController.text.trim()
-            : null,
-        taxNumber: _showBusinessFields && _taxNumberController.text.trim().isNotEmpty
-            ? _taxNumberController.text.trim()
-            : null,
-        fatherName: _fatherNameController.text.trim().isEmpty ? null : _fatherNameController.text.trim(),
-        cnic: _cnicController.text.trim().isEmpty ? null : _cnicController.text.trim(),
-        whatsappNumber: _whatsappController.text.trim().isEmpty ? null : _whatsappController.text.trim(),
-        notes: _notesController.text.trim().isEmpty
-            ? null
-            : _notesController.text.trim(),
-        createdAt: _selectedDate?.toIso8601String(),
-      );
+      try {
+        final success = await provider.addCustomer(
+          name: _nameController.text.trim(),
+          phone: _phoneController.text.trim(),
+          email: _emailController.text.trim().isEmpty
+              ? null
+              : _emailController.text.trim(),
+          address: _addressController.text.trim().isEmpty
+              ? null
+              : _addressController.text.trim(),
+          city: _cityController.text.trim().isEmpty
+              ? null
+              : _cityController.text.trim(),
+          country: _countryController.text.trim().isEmpty
+              ? null
+              : _countryController.text.trim(),
+          customerType: _selectedCustomerType,
+          businessName: _showBusinessFields && _businessNameController.text.trim().isNotEmpty
+              ? _businessNameController.text.trim()
+              : null,
+          taxNumber: _showBusinessFields && _taxNumberController.text.trim().isNotEmpty
+              ? _taxNumberController.text.trim()
+              : null,
+          fatherName: _fatherNameController.text.trim().isEmpty ? null : _fatherNameController.text.trim(),
+          cnic: _cnicController.text.trim().isEmpty ? null : _cnicController.text.trim(),
+          whatsappNumber: _whatsappController.text.trim().isEmpty ? null : _whatsappController.text.trim(),
+          notes: _notesController.text.trim().isEmpty
+              ? null
+              : _notesController.text.trim(),
+          createdAt: _selectedDate?.toIso8601String(),
+        );
 
-      if (mounted) {
         if (success) {
-          _showSuccessSnackbar();
-          Navigator.of(context).pop();
+          scaffoldMessenger.showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  Icon(
+                    Icons.check_circle_rounded,
+                    color: AppTheme.pureWhite,
+                    size: 24, // Assuming medium size
+                  ),
+                  SizedBox(width: 8), // Assuming small padding
+                  Text(
+                    'Customer Added Successfully',
+                    style: TextStyle(
+                      fontSize: 14, // Assuming body font size
+                      fontWeight: FontWeight.w500,
+                      color: AppTheme.pureWhite,
+                    ),
+                  ),
+                ],
+              ),
+              backgroundColor: Colors.green,
+              duration: const Duration(seconds: 3),
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8), // Assuming border radius
+              ),
+            ),
+          );
+          navigator.pop();
         } else {
-          _showErrorSnackbar(provider.errorMessage ?? l10n.failedToAddCustomer);
+          scaffoldMessenger.showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  Icon(
+                    Icons.error_outline,
+                    color: AppTheme.pureWhite,
+                    size: 24,
+                  ),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      provider.errorMessage ?? 'Failed to add customer',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        color: AppTheme.pureWhite,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 4),
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+          );
         }
+      } catch (e) {
+        scaffoldMessenger.showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        );
       }
     }
   }

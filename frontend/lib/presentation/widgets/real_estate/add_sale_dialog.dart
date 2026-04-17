@@ -194,6 +194,9 @@ class _AddSaleDialogState extends State<AddSaleDialog> {
           landownerCommissionHistory: widget.sale?.landownerCommissionHistory ?? const [],
         );
         
+        final messenger = ScaffoldMessenger.of(context);
+        final navigator = Navigator.of(context);
+        
         bool success;
         if (widget.sale == null) {
           success = await provider.addSale(saleData);
@@ -201,20 +204,23 @@ class _AddSaleDialogState extends State<AddSaleDialog> {
           success = await provider.updateSale(widget.sale!.id!, saleData);
         }
 
-        if (success && mounted) {
-          Navigator.pop(context);
-          ScaffoldMessenger.of(context).showSnackBar(
+        if (success) {
+          navigator.pop();
+          messenger.showSnackBar(
             SnackBar(content: Text(widget.sale == null ? 'Sale recorded successfully' : 'Sale updated successfully')),
           );
-        } else if (mounted) {
-          // Show error if failed
-          ScaffoldMessenger.of(context).showSnackBar(
+        } else {
+          messenger.showSnackBar(
             SnackBar(
               content: Text(provider.errorMessage ?? 'Failed to save sale record'),
               backgroundColor: Colors.red,
             ),
           );
         }
+      } catch (e) {
+        ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        );
       } finally {
         if (mounted) {
           setState(() => _isSaving = false);

@@ -6,7 +6,7 @@ import '../../../src/theme/app_theme.dart';
 import '../../../src/utils/responsive_breakpoints.dart';
 import '../../../src/models/real_estate/real_estate_finance_models.dart';
 import '../../../l10n/app_localizations.dart';
-
+import '../../../main.dart';
 class RealEstateFinancialReportScreen extends StatefulWidget {
   const RealEstateFinancialReportScreen({super.key});
 
@@ -571,11 +571,11 @@ class _RealEstateExportDialogState extends State<RealEstateExportDialog> {
         ),
         ElevatedButton(
           onPressed: _isExporting ? null : () async {
-            final messenger = ScaffoldMessenger.of(context);
+            final scaffoldMessenger = HiBlankitsApp.scaffoldMessengerKey.currentState;
             
             // Show preparing snackbar
-            messenger.clearSnackBars();
-            messenger.showSnackBar(
+            scaffoldMessenger?.clearSnackBars();
+            scaffoldMessenger?.showSnackBar(
               SnackBar(
                 content: Row(
                   children: [
@@ -603,38 +603,36 @@ class _RealEstateExportDialogState extends State<RealEstateExportDialog> {
             );
 
             setState(() => _isExporting = false);
-            if (mounted) {
-              messenger.clearSnackBars();
-              Navigator.pop(context); // Close dialog
+            scaffoldMessenger?.clearSnackBars();
+            HiBlankitsApp.navigatorKey.currentState?.pop(); // Close dialog
 
-              if (path != null) {
-                messenger.showSnackBar(
-                  SnackBar(
-                    content: Row(
-                      children: [
-                        const Icon(Icons.check_circle, color: Colors.white, size: 24),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            'Report saved correctly at: $path',
-                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                          ),
+            if (path != null) {
+              scaffoldMessenger?.showSnackBar(
+                SnackBar(
+                  content: Row(
+                    children: [
+                      const Icon(Icons.check_circle, color: Colors.white, size: 24),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'Report saved correctly at: $path',
+                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
                         ),
-                      ],
-                    ),
-                    backgroundColor: Colors.green.shade700,
-                    duration: const Duration(seconds: 4),
-                    behavior: SnackBarBehavior.floating,
-                    margin: const EdgeInsets.all(16),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    action: SnackBarAction(
-                      label: 'OK',
-                      textColor: Colors.white,
-                      onPressed: () => messenger.hideCurrentSnackBar(),
-                    ),
+                      ),
+                    ],
                   ),
-                );
-              }
+                  backgroundColor: Colors.green.shade700,
+                  duration: const Duration(seconds: 4),
+                  behavior: SnackBarBehavior.floating,
+                  margin: const EdgeInsets.all(16),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  action: SnackBarAction(
+                    label: 'OK',
+                    textColor: Colors.white,
+                    onPressed: () => scaffoldMessenger?.hideCurrentSnackBar(),
+                  ),
+                ),
+              );
             }
           },
           style: ElevatedButton.styleFrom(

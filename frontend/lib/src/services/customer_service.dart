@@ -221,7 +221,7 @@ class CustomerService {
 
       DebugHelper.printApiResponse('POST Create Customer', response.data);
 
-      if (response.statusCode == 201) {
+      if (response.statusCode == 201 || response.statusCode == 200) {
         final apiResponse = ApiResponse<CustomerModel>.fromJson(response.data, (data) => CustomerModel.fromJson(data));
 
         // Update cache with new customer

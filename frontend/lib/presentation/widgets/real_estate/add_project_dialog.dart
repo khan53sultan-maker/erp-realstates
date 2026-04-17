@@ -133,17 +133,31 @@ class _AddProjectDialogState extends State<AddProjectDialog> {
         status: widget.project?.status ?? 'ACTIVE',
       );
       
-      bool success;
-      if (widget.project == null) {
-        success = await context.read<RealEstateProvider>().addProject(project);
-      } else {
-        success = await context.read<RealEstateProvider>().updateProject(widget.project!.id!, project);
-      }
+      final messenger = ScaffoldMessenger.of(context);
+      final navigator = Navigator.of(context);
+      final provider = context.read<RealEstateProvider>();
 
-      if (success && mounted) {
-        Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(widget.project == null ? 'Project added successfully' : 'Project updated successfully'), backgroundColor: Colors.green),
+      try {
+        bool success;
+        if (widget.project == null) {
+          success = await provider.addProject(project);
+        } else {
+          success = await provider.updateProject(widget.project!.id!, project);
+        }
+
+        if (success) {
+          navigator.pop();
+          messenger.showSnackBar(
+            SnackBar(content: Text(widget.project == null ? 'Project added successfully' : 'Project updated successfully'), backgroundColor: Colors.green),
+          );
+        } else {
+          messenger.showSnackBar(
+            SnackBar(content: Text(provider.errorMessage ?? 'Failed to save project'), backgroundColor: Colors.red),
+          );
+        }
+      } catch (e) {
+        messenger.showSnackBar(
+           SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
         );
       }
     }

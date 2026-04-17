@@ -66,7 +66,7 @@ class RealEstateService {
   Future<ApiResponse<RealEstateProject>> createProject(RealEstateProject project) async {
     try {
       final response = await _apiClient.post(ApiConfig.realEstateProjects, data: project.toJson());
-      if (response.statusCode == 201) {
+      if (response.statusCode == 201 || response.statusCode == 200) {
         return ApiResponse<RealEstateProject>(
           success: true,
           message: 'Project created successfully',
@@ -129,7 +129,7 @@ class RealEstateService {
   Future<ApiResponse<RealEstatePlot>> createPlot(RealEstatePlot plot) async {
     try {
       final response = await _apiClient.post(ApiConfig.realEstatePlots, data: plot.toJson());
-      if (response.statusCode == 201) {
+      if (response.statusCode == 201 || response.statusCode == 200) {
         return ApiResponse<RealEstatePlot>(
           success: true,
           message: 'Plot created successfully',
@@ -188,7 +188,7 @@ class RealEstateService {
   Future<ApiResponse<RealEstateDealer>> createDealer(RealEstateDealer dealer) async {
     try {
       final response = await _apiClient.post(ApiConfig.realEstateDealers, data: dealer.toJson());
-      if (response.statusCode == 201) {
+      if (response.statusCode == 201 || response.statusCode == 200) {
         return ApiResponse<RealEstateDealer>(
           success: true,
           message: 'Dealer created successfully',
@@ -251,7 +251,7 @@ class RealEstateService {
   Future<ApiResponse<RealEstateSale>> createSale(RealEstateSale sale) async {
     try {
       final response = await _apiClient.post(ApiConfig.realEstateSales, data: sale.toJson());
-      if (response.statusCode == 201) {
+      if (response.statusCode == 201 || response.statusCode == 200) {
         return ApiResponse<RealEstateSale>(
           success: true,
           message: 'Sale created successfully',
@@ -349,7 +349,7 @@ class RealEstateService {
   Future<ApiResponse<RealEstateIncome>> createIncome(RealEstateIncome income) async {
     try {
       final response = await _apiClient.post(ApiConfig.realEstateIncomes, data: income.toJson());
-      if (response.statusCode == 201) {
+      if (response.statusCode == 201 || response.statusCode == 200) {
         return ApiResponse(success: true, message: 'Income recorded', data: RealEstateIncome.fromJson(response.data));
       }
       return ApiResponse(success: false, message: 'Failed to record income');
@@ -404,7 +404,7 @@ class RealEstateService {
   Future<ApiResponse<RealEstateExpense>> createExpense(RealEstateExpense expense) async {
     try {
       final response = await _apiClient.post(ApiConfig.realEstateExpenses, data: expense.toJson());
-      if (response.statusCode == 201) {
+      if (response.statusCode == 201 || response.statusCode == 200) {
         return ApiResponse(success: true, message: 'Expense recorded', data: RealEstateExpense.fromJson(response.data));
       }
       return ApiResponse(success: false, message: 'Failed to record expense');

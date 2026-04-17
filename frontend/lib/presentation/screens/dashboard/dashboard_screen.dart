@@ -23,11 +23,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         final dashboardProvider = context.read<DashboardProvider>();
+        final authProvider = context.read<AuthProvider>();
+
+        // ✅ Redirect MANAGER away from dashboard to Projects (index 1)
+        if (authProvider.currentUser?.role == 'MANAGER' &&
+            (dashboardProvider.selectedMenuIndex == 0 || dashboardProvider.selectedMenuIndex == 27)) {
+          dashboardProvider.selectMenu(1);
+        }
+
         dashboardProvider.setInstance(); // Set global instance
         dashboardProvider.initialize();
 
         // ✅ Add listener to handle auto-logout/unauthenticated state
-        final authProvider = context.read<AuthProvider>();
         authProvider.addListener(_handleAuthStateChange);
       }
     });

@@ -39,6 +39,8 @@ import '../../screens/real_estate/finance_screen.dart';
 import '../../screens/real_estate/financial_reports_screen.dart';
 import '../../screens/real_estate/real_estate_dashboard_screen.dart';
 
+import '../../../src/providers/auth_provider.dart';
+
 // Dashboard Widgets
 import 'sales_overview_chart.dart';
 import 'recent_orders_card.dart';
@@ -52,9 +54,14 @@ class DashboardContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final userRole = context.read<AuthProvider>().currentUser?.role ?? 'ADMIN';
+
     switch (selectedIndex) {
       case 0:
       case 27:
+        if (userRole == 'MANAGER') {
+          return const ProjectPage();
+        }
         return const RealEstateDashboardScreen();
       case 1:
         return const ProjectPage();

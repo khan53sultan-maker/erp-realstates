@@ -270,7 +270,7 @@ class PremiumSidebar extends StatelessWidget {
     final userRole = authProvider.currentUser?.role ?? 'ADMIN';
 
     final List<Map<String, dynamic>> allItems = [
-      {'icon': Icons.dashboard_rounded, 'title': l10n.dashboard, 'badge': null, 'index': 27, 'roles': ['ADMIN', 'MANAGER', 'SALES_AGENT', 'ACCOUNTANT']},
+      {'icon': Icons.dashboard_rounded, 'title': l10n.dashboard, 'badge': null, 'index': 27, 'roles': ['ADMIN', 'SALES_AGENT', 'ACCOUNTANT']},
       {'icon': Icons.business_rounded, 'title': l10n.projects, 'badge': projectsCount, 'index': 1, 'roles': ['ADMIN', 'MANAGER', 'SALES_AGENT']},
       {'icon': Icons.map_rounded, 'title': l10n.plots, 'badge': plotsCount, 'index': 2, 'roles': ['ADMIN', 'MANAGER', 'SALES_AGENT']},
       {'icon': Icons.people_rounded, 'title': l10n.customers, 'badge': customersCount, 'index': 9, 'roles': ['ADMIN', 'MANAGER', 'SALES_AGENT']},
@@ -283,7 +283,7 @@ class PremiumSidebar extends StatelessWidget {
         'index': 25,
         'roles': ['ADMIN', 'MANAGER', 'ACCOUNTANT']
       },
-      {'icon': Icons.bar_chart_rounded, 'title': 'Finance Reports', 'badge': null, 'index': 26, 'roles': ['ADMIN', 'ACCOUNTANT']},
+      {'icon': Icons.bar_chart_rounded, 'title': 'Finance Reports', 'badge': null, 'index': 26, 'roles': ['ADMIN', 'MANAGER', 'ACCOUNTANT']},
     ];
 
     return allItems.where((item) => (item['roles'] as List<String>).contains(userRole)).toList();

@@ -69,6 +69,7 @@ class HiBlankitsApp extends StatelessWidget {
   const HiBlankitsApp({super.key});
 
   static final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+  static final GlobalKey<ScaffoldMessengerState> scaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
 
   @override
   Widget build(BuildContext context) {
@@ -137,6 +138,7 @@ class HiBlankitsApp extends StatelessWidget {
                 darkTheme: AppTheme.darkTheme,
                 themeMode: ThemeMode.light,
                 navigatorKey: navigatorKey,
+                scaffoldMessengerKey: scaffoldMessengerKey,
 
                 locale: appProvider.locale,
 
