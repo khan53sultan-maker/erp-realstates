@@ -400,6 +400,26 @@ class RealEstateProvider with ChangeNotifier {
     }
   }
 
+  Future<bool> payDownPayment(String id, Map<String, dynamic> data) async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    final response = await _service.payDownPayment(id, data);
+    if (response.success) {
+      final index = _sales.indexWhere((s) => s.id == id);
+      if (index != -1) _sales[index] = response.data!;
+      _isLoading = false;
+      notifyListeners();
+      return true;
+    } else {
+      _errorMessage = response.message;
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
   Future<bool> updateInstallment(String id, Map<String, dynamic> data) async {
     _isLoading = true;
     _errorMessage = null;

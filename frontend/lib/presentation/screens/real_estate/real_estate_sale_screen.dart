@@ -4,9 +4,11 @@ import 'package:sizer/sizer.dart';
 import '../../../src/theme/app_theme.dart';
 import '../../../src/utils/responsive_breakpoints.dart';
 import '../../../src/providers/real_estate_provider.dart';
+import '../../../src/providers/auth_provider.dart';
 import '../../widgets/real_estate/sale_table.dart';
 import '../../widgets/real_estate/add_sale_dialog.dart';
 import '../../../src/services/real_estate_ledger_export_service.dart';
+import '../../../main.dart';
 
 class RealEstateSalePage extends StatefulWidget {
   const RealEstateSalePage({super.key});
@@ -41,6 +43,9 @@ class _RealEstateSalePageState extends State<RealEstateSalePage> {
 
   @override
   Widget build(BuildContext context) {
+    final role = context.read<AuthProvider>().currentUser?.role ?? 'ADMIN';
+    final isManager = role == 'MANAGER';
+
     return Scaffold(
       backgroundColor: AppTheme.creamWhite,
       body: Consumer<RealEstateProvider>(
@@ -93,9 +98,9 @@ class _RealEstateSalePageState extends State<RealEstateSalePage> {
                       _summaryCard('TOTAL SALES VALUE', totalSales, Colors.blue.shade800, Icons.monetization_on_rounded),
                       _summaryCard('TOTAL RECEIVED', totalReceived, Colors.green.shade700, Icons.account_balance_wallet_rounded),
                       _summaryCard('TOTAL REMAINING', totalRemaining, Colors.red.shade700, Icons.pending_actions_rounded),
-                      _summaryCard('NET PROFIT', coCommRecv - dealerCommPaid, Colors.indigo, Icons.trending_up),
-                      _summaryCard('COMPANY COMMISSION', totalCoComm, Colors.purple.shade700, Icons.business_center),
-                      _summaryCard('COMM. RECEIVED', coCommRecv, Colors.teal, Icons.download_done),
+                      if (!isManager) _summaryCard('NET PROFIT', coCommRecv - dealerCommPaid, Colors.indigo, Icons.trending_up),
+                      if (!isManager) _summaryCard('COMPANY COMMISSION', totalCoComm, Colors.purple.shade700, Icons.business_center),
+                      if (!isManager) _summaryCard('COMM. RECEIVED', coCommRecv, Colors.teal, Icons.download_done),
                       _summaryCard('DEALER COMMISSIONS', totalDealerComm, Colors.orange.shade800, Icons.groups_rounded),
                       _summaryCard('DEALER REMAINING', totalDealerComm - dealerCommPaid, Colors.deepOrange, Icons.history),
                     ],
@@ -165,7 +170,7 @@ class _RealEstateSalePageState extends State<RealEstateSalePage> {
         final isPdf = val.split('_')[1] == 'pdf';
         
         try {
-          ScaffoldMessenger.of(context).showSnackBar(
+          HiBlankitsApp.scaffoldMessengerKey.currentState?.showSnackBar(
             SnackBar(
               content: Row(
                 children: [
@@ -185,8 +190,8 @@ class _RealEstateSalePageState extends State<RealEstateSalePage> {
           );
 
           if (path != null && mounted) {
-            ScaffoldMessenger.of(context).clearSnackBars();
-            ScaffoldMessenger.of(context).showSnackBar(
+            HiBlankitsApp.scaffoldMessengerKey.currentState?.clearSnackBars();
+            HiBlankitsApp.scaffoldMessengerKey.currentState?.showSnackBar(
               SnackBar(
                 content: Text('${type.toUpperCase()} report saved successfully!'),
                 backgroundColor: Colors.green.shade700,
@@ -194,8 +199,8 @@ class _RealEstateSalePageState extends State<RealEstateSalePage> {
               ),
             );
           } else if (mounted) {
-            ScaffoldMessenger.of(context).clearSnackBars();
-            ScaffoldMessenger.of(context).showSnackBar(
+            HiBlankitsApp.scaffoldMessengerKey.currentState?.clearSnackBars();
+            HiBlankitsApp.scaffoldMessengerKey.currentState?.showSnackBar(
               SnackBar(content: Text('Failed to export ${type} report'), backgroundColor: Colors.red),
             );
           }

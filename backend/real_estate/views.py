@@ -5,7 +5,10 @@ from django_filters.rest_framework import DjangoFilterBackend
 from datetime import timedelta
 from django.db.models import Sum
 from django.utils import timezone
-from .models import Project, Plot, Dealer, RealEstateSale, Installment, RealEstateIncome, RealEstateExpense
+from .models import (
+    Project, Plot, Dealer, RealEstateSale, Installment, 
+    RealEstateIncome, RealEstateExpense, DownPaymentPayment
+)
 from django.http import HttpResponse
 from .serializers import (
     ProjectSerializer, PlotSerializer, DealerSerializer, 
@@ -71,6 +74,30 @@ class RealEstateSaleViewSet(viewsets.ModelViewSet):
     filterset_fields = ['plot__project', 'customer', 'dealer']
     search_fields = ['plot__plot_number', 'customer__name']
     ordering_fields = ['sale_date', 'total_price']
+
+    @action(detail=True, methods=['post'])
+    def pay_down_payment(self, request, pk=None):
+        sale = self.get_object()
+        amount = request.data.get('amount')
+        payment_date = request.data.get('payment_date', timezone.now().date())
+        receipt_number = request.data.get('receipt_number')
+        remarks = request.data.get('remarks')
+
+        if not amount:
+            return Response({'error': 'Amount is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Create history entry which will trigger income and update received_down_payment
+        DownPaymentPayment.objects.create(
+            sale=sale,
+            amount=amount,
+            payment_date=payment_date,
+            receipt_number=receipt_number,
+            remarks=remarks
+        )
+
+        # Refresh sale from DB
+        sale.refresh_from_db()
+        return Response(RealEstateSaleSerializer(sale).data)
 
 class InstallmentViewSet(viewsets.ModelViewSet):
     pagination_class = None

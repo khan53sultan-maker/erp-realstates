@@ -5,6 +5,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
 
 import '../../../src/providers/real_estate_provider.dart';
+import '../../../src/providers/auth_provider.dart';
 import '../../../src/theme/app_theme.dart';
 import '../../../src/utils/responsive_breakpoints.dart';
 import '../../../src/models/real_estate/real_estate_finance_models.dart';
@@ -187,6 +188,10 @@ class _RealEstateDashboardScreenState extends State<RealEstateDashboardScreen> {
     final cur = NumberFormat.currency(symbol: 'Rs. ', decimalDigits: 0);
     final isMobile = MediaQuery.of(context).size.width < 900;
     
+    // Check if user is MANAGER to hide profit/loss info
+    final role = context.read<AuthProvider>().currentUser?.role ?? 'ADMIN';
+    final isManager = role == 'MANAGER';
+    
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -204,7 +209,7 @@ class _RealEstateDashboardScreenState extends State<RealEstateDashboardScreen> {
             _buildStatCard(context, 'Total Sale Value', cur.format(data.totalSalesAllTime), Icons.sell, Colors.blue),
             _buildStatCard(context, 'Total Received', cur.format(data.totalSalesAllTime - data.totalReceivables), Icons.payments, Colors.green),
             _buildStatCard(context, 'Total Remaining', cur.format(data.totalReceivables), Icons.account_balance, Colors.redAccent),
-            _buildStatCard(context, 'Net Profit', cur.format(data.netProfit), Icons.trending_up, Colors.indigo),
+            if (!isManager) _buildStatCard(context, 'Net Profit', cur.format(data.netProfit), Icons.trending_up, Colors.indigo),
           ],
         ),
         
@@ -221,8 +226,8 @@ class _RealEstateDashboardScreenState extends State<RealEstateDashboardScreen> {
           mainAxisSpacing: context.cardPadding,
           childAspectRatio: 2.8,
           children: [
-            _buildStatCard(context, 'Today\'s Income', cur.format(data.today['income'] ?? 0), Icons.input, Colors.teal),
-            _buildStatCard(context, 'Today\'s Expenses', cur.format(data.today['expense'] ?? 0), Icons.output, Colors.red),
+            if (!isManager) _buildStatCard(context, 'Today\'s Income', cur.format(data.today['income'] ?? 0), Icons.input, Colors.teal),
+            if (!isManager) _buildStatCard(context, 'Today\'s Expenses', cur.format(data.today['expense'] ?? 0), Icons.output, Colors.red),
             _buildStatCard(context, 'Commission Received', cur.format(data.totalCommissionReceived), Icons.account_balance_wallet, Colors.blueAccent),
             _buildStatCard(context, 'Commission Paid', cur.format(data.totalCommissionPaid), Icons.money_off, Colors.orange),
             _buildStatCard(context, 'Available Plots', '${data.availablePlots}', Icons.map, Colors.purple),
@@ -288,6 +293,9 @@ class _RealEstateDashboardScreenState extends State<RealEstateDashboardScreen> {
   }
 
   Widget _buildChartsSection(BuildContext context, RealEstateDashboardData data) {
+    final role = context.read<AuthProvider>().currentUser?.role ?? 'ADMIN';
+    final isManager = role == 'MANAGER';
+
     return Column(
       children: [
         Row(
@@ -303,12 +311,14 @@ class _RealEstateDashboardScreenState extends State<RealEstateDashboardScreen> {
             ),
           ],
         ),
-        SizedBox(height: context.cardPadding * 2),
-        _buildIncomeVsExpenseChart(
-          context,
-          data.charts['monthly_income'] ?? [],
-          data.charts['monthly_expense'] ?? [],
-        ),
+        if (!isManager) ...[
+          SizedBox(height: context.cardPadding * 2),
+          _buildIncomeVsExpenseChart(
+            context,
+            data.charts['monthly_income'] ?? [],
+            data.charts['monthly_expense'] ?? [],
+          ),
+        ],
       ],
     );
   }

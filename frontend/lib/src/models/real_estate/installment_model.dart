@@ -53,8 +53,10 @@ class RealEstateInstallment {
   });
 
   factory RealEstateInstallment.fromJson(Map<String, dynamic> json) {
-    var historyList = json['payment_history'] as List? ?? [];
-    List<InstallmentPayment> history = historyList.map((e) => InstallmentPayment.fromJson(e)).toList();
+    final history = (json['payment_history'] as List?)
+            ?.map<InstallmentPayment>((e) => InstallmentPayment.fromJson(e as Map<String, dynamic>))
+            .toList() ??
+        const <InstallmentPayment>[];
 
     return RealEstateInstallment(
       id: json['id'],

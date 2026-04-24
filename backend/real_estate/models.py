@@ -184,6 +184,7 @@ class RealEstateSale(models.Model):
     )
 
     landowner_payment_remarks = models.TextField(blank=True, null=True, help_text="Remarks for the last payment made to landowner")
+    remarks = models.TextField(blank=True, null=True, help_text="General remarks or initial down payment remarks")
     semi_annual_balloon_payment = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'), help_text="Amount to be paid every 6 months as a lump sum")
 
     created_at = models.DateTimeField(auto_now_add=True)
@@ -347,6 +348,17 @@ class RealEstateSale(models.Model):
         from .models import RealEstateIncome, RealEstateExpense
         
         if is_new:
+            if self.received_down_payment > 0:
+                # 1. Record in History
+                DownPaymentPayment.objects.create(
+                    sale=self,
+                    amount=self.received_down_payment,
+                    payment_date=self.sale_date or timezone.now().date(),
+                    receipt_number=self.receipt_number,
+                    remarks=self.remarks or "Initial Down Payment"
+                )
+                # Note: DownPaymentPayment.save() will handle creating RealEstateIncome entry
+
             if self.landowner_commission_received > 0:
                 desc = f"Automated: Initial commission received for {self.plot.plot_number}"
                 if self.landowner_payment_remarks:
@@ -547,6 +559,7 @@ class RealEstateIncome(models.Model):
     INCOME_TYPE_CHOICES = [
         ('COMMISSION_RECEIVED', 'Commission Received'),
         ('INSTALLMENT_PAYMENT', 'Installment Payment'),
+        ('DOWN_PAYMENT', 'Down Payment'),
         ('OTHER', 'Other Income'),
     ]
 
@@ -741,3 +754,46 @@ class InstallmentPayment(models.Model):
 
     def __str__(self):
         return f"Payment of {self.amount} on {self.payment_date} for {self.installment}"
+
+
+class DownPaymentPayment(models.Model):
+    """History of partial payments for a down payment"""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    sale = models.ForeignKey(RealEstateSale, on_delete=models.CASCADE, related_name='down_payment_history')
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    payment_date = models.DateField(default=_today)
+    receipt_number = models.CharField(max_length=50, blank=True, null=True)
+    remarks = models.CharField(max_length=255, blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['payment_date', 'created_at']
+
+    def save(self, *args, **kwargs):
+        is_new = self._state.adding
+        super().save(*args, **kwargs)
+        
+        if is_new:
+            # 1. Update sale received_down_payment
+            # Use update to avoid triggering full sale save which might be complex
+            self.sale.received_down_payment = (self.sale.received_down_payment or Decimal('0.00')) + self.amount
+            RealEstateSale.objects.filter(pk=self.sale.pk).update(
+                received_down_payment=self.sale.received_down_payment
+            )
+
+            # 2. Record in Global Income
+            desc = f"Down payment for {self.sale.plot.plot_number} - {self.sale.customer.name}"
+            if self.remarks:
+                desc += f" ({self.remarks})"
+            
+            RealEstateIncome.objects.create(
+                project=self.sale.plot.project,
+                income_type='DOWN_PAYMENT',
+                amount=self.amount,
+                date=self.payment_date,
+                description=desc,
+                sale=self.sale
+            )
+
+    def __str__(self):
+        return f"Down Payment of {self.amount} on {self.payment_date} for {self.sale}"

@@ -11,6 +11,7 @@ import '../models/real_estate/real_estate_finance_models.dart';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'package:open_file/open_file.dart';
+import '../utils/file_downloader/file_downloader.dart';
 import 'api_client.dart';
 
 class RealEstateService {
@@ -288,6 +289,22 @@ class RealEstateService {
     }
   }
 
+  Future<ApiResponse<RealEstateSale>> payDownPayment(String saleId, Map<String, dynamic> data) async {
+    try {
+      final response = await _apiClient.post('${ApiConfig.realEstateSales}$saleId/pay_down_payment/', data: data);
+      if (response.statusCode == 200) {
+        return ApiResponse<RealEstateSale>(
+          success: true,
+          message: 'Down payment recorded successfully',
+          data: RealEstateSale.fromJson(response.data),
+        );
+      }
+      return ApiResponse<RealEstateSale>(success: false, message: 'Failed to record down payment');
+    } catch (e) {
+      return ApiResponse<RealEstateSale>(success: false, message: e.toString());
+    }
+  }
+
   // --- Installments ---
   Future<ApiResponse<List<RealEstateInstallment>>> getInstallments({String? saleId, String? status}) async {
     try {
@@ -516,16 +533,8 @@ class RealEstateService {
         final extension = isPdf ? 'pdf' : 'xlsx';
         final fileName = 'real_estate_report_${DateTime.now().millisecondsSinceEpoch}.$extension';
 
-        // Use the same logic as SaleReportsService
-        final directory = await _getExportDirectory();
-        if (directory == null) return null;
-
-        final filePath = '${directory.path}/$fileName';
-        final file = File(filePath);
-        await file.writeAsBytes(bytes);
-
-        // Import open_file might be needed or use the existing one
-        return filePath;
+        // Use cross-platform downloader logic Instead
+        return await downloadAndSaveFile(bytes, fileName);
       }
       return null;
     } catch (e) {

@@ -18,6 +18,7 @@ class RealEstateSale {
   final double installmentAmount;
   final String? registrationNumber;
   final String? receiptNumber;
+  final String? remarks;
   final double receivedDownPayment;
   final double landownerCommissionReceived;
   final double landownerCommissionRemaining;
@@ -49,6 +50,7 @@ class RealEstateSale {
   final List<DealerPaymentRec> dealerPayments;
   final List<LandownerPaymentRec> landownerPayments;
   final List<LandownerCommissionRec> landownerCommissionHistory;
+  final List<DownPaymentRec> downPaymentHistory;
 
   RealEstateSale({
     this.id,
@@ -64,6 +66,7 @@ class RealEstateSale {
     required this.totalPrice,
     this.registrationNumber,
     this.receiptNumber,
+    this.remarks,
     required this.downPayment,
     this.receivedDownPayment = 0.0,
     required this.remainingBalance,
@@ -99,17 +102,29 @@ class RealEstateSale {
     this.dealerPayments = const <DealerPaymentRec>[],
     this.landownerPayments = const <LandownerPaymentRec>[],
     this.landownerCommissionHistory = const <LandownerCommissionRec>[],
+    this.downPaymentHistory = const <DownPaymentRec>[],
   });
 
   factory RealEstateSale.fromJson(Map<String, dynamic> json) {
-    var dPayList = json['dealer_payments'] as List? ?? [];
-    List<DealerPaymentRec> dPayments = dPayList.map((p) => DealerPaymentRec.fromJson(p as Map<String, dynamic>)).toList();
+    final dPayments = (json['dealer_payments'] as List?)
+            ?.map<DealerPaymentRec>((p) => DealerPaymentRec.fromJson(p as Map<String, dynamic>))
+            .toList() ??
+        const <DealerPaymentRec>[];
+    
+    final lPayments = (json['landowner_payments'] as List?)
+            ?.map<LandownerPaymentRec>((p) => LandownerPaymentRec.fromJson(p as Map<String, dynamic>))
+            .toList() ??
+        const <LandownerPaymentRec>[];
+    
+    final lcHistory = (json['landowner_commission_history'] as List?)
+            ?.map<LandownerCommissionRec>((p) => LandownerCommissionRec.fromJson(p as Map<String, dynamic>))
+            .toList() ??
+        const <LandownerCommissionRec>[];
 
-    var lPayList = json['landowner_payments'] as List? ?? [];
-    List<LandownerPaymentRec> lPayments = lPayList.map((p) => LandownerPaymentRec.fromJson(p as Map<String, dynamic>)).toList();
-
-    var lcHistList = json['landowner_commission_history'] as List? ?? [];
-    List<LandownerCommissionRec> lcHistory = lcHistList.map((p) => LandownerCommissionRec.fromJson(p as Map<String, dynamic>)).toList();
+    final dpHistory = (json['down_payment_history'] as List?)
+            ?.map<DownPaymentRec>((p) => DownPaymentRec.fromJson(p as Map<String, dynamic>))
+            .toList() ??
+        const <DownPaymentRec>[];
 
     return RealEstateSale(
       id: json['id']?.toString(),
@@ -125,6 +140,7 @@ class RealEstateSale {
       totalPrice: double.tryParse(json['total_price']?.toString() ?? '0') ?? 0.0,
       registrationNumber: json['registration_number'],
       receiptNumber: json['receipt_number'],
+      remarks: json['remarks'],
       downPayment: double.tryParse(json['down_payment']?.toString() ?? '0') ?? 0.0,
       receivedDownPayment: double.tryParse(json['received_down_payment']?.toString() ?? '0') ?? 0.0,
       remainingBalance: double.tryParse(json['remaining_balance']?.toString() ?? '0') ?? 0.0,
@@ -160,6 +176,7 @@ class RealEstateSale {
       dealerPayments: dPayments,
       landownerPayments: lPayments,
       landownerCommissionHistory: lcHistory,
+      downPaymentHistory: dpHistory,
     );
   }
 
@@ -172,6 +189,7 @@ class RealEstateSale {
       'total_price': totalPrice,
       'registration_number': registrationNumber,
       'receipt_number': receiptNumber,
+      'remarks': remarks,
       'down_payment': downPayment,
       'received_down_payment': receivedDownPayment,
       'remaining_balance': remainingBalance,

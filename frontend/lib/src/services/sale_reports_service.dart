@@ -7,6 +7,8 @@ import '../config/api_config.dart';
 import '../models/api_response.dart';
 import '../models/sales/sale_report_model.dart';
 import '../utils/debug_helper.dart';
+import '../utils/debug_helper.dart';
+import '../utils/file_downloader/file_downloader.dart';
 import 'api_client.dart';
 
 /// Service for fetching sale reports from the backend API
@@ -203,23 +205,8 @@ class SaleReportsService {
 
         debugPrint('✅ [SaleReportsService] PDF generated: ${bytes.length} bytes');
         
-        // Save to Downloads folder and open (Desktop only)
-        final directory = await getDownloadsDirectory();
-        if (directory == null) {
-          debugPrint('❌ [SaleReportsService] Could not get downloads directory');
-          return null;
-        }
-        
-        final filePath = '${directory.path}/$fileName';
-        final file = File(filePath);
-        await file.writeAsBytes(bytes);
-        
-        debugPrint('✅ [SaleReportsService] PDF saved to: $filePath');
-        
-        // Open the PDF file
-        await OpenFile.open(filePath);
-        
-        return fileName;
+        // Use cross-platform downloader logic Instead
+        return await downloadAndSaveFile(bytes, fileName);
       }
       return null;
     } catch (e) {

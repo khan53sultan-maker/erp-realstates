@@ -124,9 +124,10 @@ class _LogoutDialogWidgetState extends State<LogoutDialogWidget> {
                         duration: const Duration(seconds: 2),
                       ),
                     );
-                      // 1. Stop background processes
+                      // 1. Stop background processes and reset menu
                       final dashboardProvider = context.read<DashboardProvider>();
                       dashboardProvider.stopPolling();
+                      dashboardProvider.selectMenu(27); // Reset to Dashboard
                       
                       // 2. Clear UI state
                       Navigator.of(dialogContext).pop();
@@ -270,7 +271,7 @@ class PremiumSidebar extends StatelessWidget {
     final userRole = authProvider.currentUser?.role ?? 'ADMIN';
 
     final List<Map<String, dynamic>> allItems = [
-      {'icon': Icons.dashboard_rounded, 'title': l10n.dashboard, 'badge': null, 'index': 27, 'roles': ['ADMIN', 'SALES_AGENT', 'ACCOUNTANT']},
+      {'icon': Icons.dashboard_rounded, 'title': l10n.dashboard, 'badge': null, 'index': 27, 'roles': ['ADMIN', 'MANAGER', 'SALES_AGENT', 'ACCOUNTANT']},
       {'icon': Icons.business_rounded, 'title': l10n.projects, 'badge': projectsCount, 'index': 1, 'roles': ['ADMIN', 'MANAGER', 'SALES_AGENT']},
       {'icon': Icons.map_rounded, 'title': l10n.plots, 'badge': plotsCount, 'index': 2, 'roles': ['ADMIN', 'MANAGER', 'SALES_AGENT']},
       {'icon': Icons.people_rounded, 'title': l10n.customers, 'badge': customersCount, 'index': 9, 'roles': ['ADMIN', 'MANAGER', 'SALES_AGENT']},

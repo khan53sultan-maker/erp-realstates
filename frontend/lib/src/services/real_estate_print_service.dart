@@ -124,6 +124,8 @@ class RealEstatePrintService {
                       _buildHeaderCell('#'),
                       _buildHeaderCell('Due Date'),
                       _buildHeaderCell('Amount'),
+                      _buildHeaderCell('Paid'),
+                      _buildHeaderCell('Remaining'),
                       _buildHeaderCell('Status'),
                       _buildHeaderCell('Paid Date'),
                       _buildHeaderCell('Receipt #'),
@@ -138,6 +140,8 @@ class RealEstatePrintService {
                         _buildCell((index + 1).toString()),
                         _buildCell(inst.dueDate),
                         _buildCell('Rs. ${inst.amount.toStringAsFixed(0)}'),
+                        _buildCell('Rs. ${inst.paidAmount.toStringAsFixed(0)}', color: PdfColors.green900),
+                        _buildCell('Rs. ${(inst.amount - inst.paidAmount).toStringAsFixed(0)}', color: PdfColors.red900),
                         _buildCell(inst.status, 
                             color: inst.status == 'PAID' ? PdfColors.green900 : PdfColors.orange900),
                         _buildCell(inst.paidDate ?? '-'),
@@ -316,6 +320,35 @@ class RealEstatePrintService {
               _buildReceiptRow('Plot Price:', 'Rs. ${sale.totalPrice.toStringAsFixed(0)}'),
               pw.Divider(thickness: 0.5),
               
+              if (sale.downPaymentHistory.isNotEmpty) ...[
+                pw.SizedBox(height: 5),
+                pw.Text('PAYMENT HISTORY:', style: pw.TextStyle(fontSize: 7, fontWeight: pw.FontWeight.bold)),
+                pw.SizedBox(height: 2),
+                pw.Table(
+                  border: pw.TableBorder.all(color: PdfColors.grey300, width: 0.5),
+                  children: [
+                    pw.TableRow(
+                      decoration: const pw.BoxDecoration(color: PdfColors.grey100),
+                      children: [
+                        pw.Padding(padding: const pw.EdgeInsets.all(2), child: pw.Text('Date', style: pw.TextStyle(fontSize: 6, fontWeight: pw.FontWeight.bold))),
+                        pw.Padding(padding: const pw.EdgeInsets.all(2), child: pw.Text('Amount', style: pw.TextStyle(fontSize: 6, fontWeight: pw.FontWeight.bold))),
+                        pw.Padding(padding: const pw.EdgeInsets.all(2), child: pw.Text('Receipt #', style: pw.TextStyle(fontSize: 6, fontWeight: pw.FontWeight.bold))),
+                        pw.Padding(padding: const pw.EdgeInsets.all(2), child: pw.Text('Remarks', style: pw.TextStyle(fontSize: 6, fontWeight: pw.FontWeight.bold))),
+                      ],
+                    ),
+                    ...sale.downPaymentHistory.map((p) => pw.TableRow(
+                      children: [
+                        pw.Padding(padding: const pw.EdgeInsets.all(2), child: pw.Text(p.date, style: const pw.TextStyle(fontSize: 6))),
+                        pw.Padding(padding: const pw.EdgeInsets.all(2), child: pw.Text('Rs. ${p.amount.toStringAsFixed(0)}', style: const pw.TextStyle(fontSize: 6))),
+                        pw.Padding(padding: const pw.EdgeInsets.all(2), child: pw.Text((p.receiptNumber != null && p.receiptNumber!.isNotEmpty) ? p.receiptNumber! : 'DP-${sale.id?.substring(0, 5).toUpperCase() ?? "N/A"}', style: const pw.TextStyle(fontSize: 6))),
+                        pw.Padding(padding: const pw.EdgeInsets.all(2), child: pw.Text(p.remarks ?? '-', style: pw.TextStyle(fontSize: 6, fontStyle: pw.FontStyle.italic))),
+                      ],
+                    )),
+                  ],
+                ),
+                pw.SizedBox(height: 10),
+              ],
+
               pw.Row(
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [

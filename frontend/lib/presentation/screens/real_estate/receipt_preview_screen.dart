@@ -166,6 +166,39 @@ class RealEstateReceiptPreviewScreen extends StatelessWidget {
         if (isBookingReceipt) _row('Plot Price:', formatter.format(sale.totalPrice)),
         const Divider(height: 30),
         
+        if (isBookingReceipt && sale.downPaymentHistory.isNotEmpty) ...[
+          const Text('PAYMENT HISTORY:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.charcoalGray)),
+          const SizedBox(height: 8),
+          Table(
+            border: TableBorder.all(color: Colors.grey.shade300, width: 0.5),
+            columnWidths: const {
+              0: FlexColumnWidth(2),
+              1: FlexColumnWidth(2),
+              2: FlexColumnWidth(3),
+            },
+            children: [
+              TableRow(
+                decoration: BoxDecoration(color: Colors.grey.shade100),
+                children: const [
+                  Padding(padding: EdgeInsets.all(4), child: Text('Date', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold))),
+                  Padding(padding: EdgeInsets.all(4), child: Text('Amount', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold))),
+                  Padding(padding: EdgeInsets.all(4), child: Text('Receipt #', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold))),
+                  Padding(padding: EdgeInsets.all(4), child: Text('Remarks', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold))),
+                ],
+              ),
+              ...sale.downPaymentHistory.map((p) => TableRow(
+                children: [
+                  Padding(padding: const EdgeInsets.all(4), child: Text(p.date, style: const TextStyle(fontSize: 10))),
+                  Padding(padding: const EdgeInsets.all(4), child: Text(formatter.format(p.amount), style: const TextStyle(fontSize: 10))),
+                  Padding(padding: const EdgeInsets.all(4), child: Text((p.receiptNumber != null && p.receiptNumber!.isNotEmpty) ? p.receiptNumber! : 'DP-${sale.id?.substring(0, 8).toUpperCase() ?? "NEW"}', style: const TextStyle(fontSize: 10))),
+                  Padding(padding: const EdgeInsets.all(4), child: Text(p.remarks ?? '-', style: const TextStyle(fontSize: 10, fontStyle: FontStyle.italic))),
+                ],
+              )),
+            ],
+          ),
+          const SizedBox(height: 20),
+        ],
+
         if (!isBookingReceipt && installment != null && installment!.paymentHistory.isNotEmpty) ...[
           const Text('PAYMENT HISTORY:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.charcoalGray)),
           const SizedBox(height: 8),

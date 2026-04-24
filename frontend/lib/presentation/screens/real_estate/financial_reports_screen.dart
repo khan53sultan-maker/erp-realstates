@@ -5,6 +5,7 @@ import '../../../src/providers/real_estate_provider.dart';
 import '../../../src/theme/app_theme.dart';
 import '../../../src/utils/responsive_breakpoints.dart';
 import '../../../src/models/real_estate/real_estate_finance_models.dart';
+import '../../../src/providers/auth_provider.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../main.dart';
 class RealEstateFinancialReportScreen extends StatefulWidget {
@@ -39,6 +40,9 @@ class _RealEstateFinancialReportScreenState extends State<RealEstateFinancialRep
 
   @override
   Widget build(BuildContext context) {
+    final role = context.read<AuthProvider>().currentUser?.role ?? 'ADMIN';
+    final isManager = role == 'MANAGER';
+
     return Scaffold(
       backgroundColor: AppTheme.creamWhite,
       body: NestedScrollView(
@@ -75,15 +79,15 @@ class _RealEstateFinancialReportScreenState extends State<RealEstateFinancialRep
         body: TabBarView(
           controller: _tabController,
           children: [
-            _buildPeriodSummaryTab(),
-            _buildProjectProfitTab(),
+            _buildPeriodSummaryTab(isManager),
+            _buildProjectProfitTab(isManager),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildPeriodSummaryTab() {
+  Widget _buildPeriodSummaryTab(bool isManager) {
     return Consumer<RealEstateProvider>(
       builder: (context, provider, child) {
         if (provider.isLoading && provider.reportSummary == null) {
@@ -100,7 +104,7 @@ class _RealEstateFinancialReportScreenState extends State<RealEstateFinancialRep
             children: [
               _buildFilters(),
               const SizedBox(height: 24),
-              _buildSummaryHeader(summary),
+              _buildSummaryHeader(summary, isManager),
               const SizedBox(height: 24),
               // ResponsiveBreakpoints.responsive(
               //   context,
@@ -200,14 +204,14 @@ class _RealEstateFinancialReportScreenState extends State<RealEstateFinancialRep
     );
   }
 
-  Widget _buildSummaryHeader(FinancialSummary summary) {
+  Widget _buildSummaryHeader(FinancialSummary summary, bool isManager) {
     return Wrap(
       spacing: 16,
       runSpacing: 16,
       children: [
-        _buildStatBox('Total Income', 'Rs. ${summary.totalIncome.toStringAsFixed(0)}', Icons.arrow_upward, Colors.green),
-        _buildStatBox('Total Expense', 'Rs. ${summary.totalExpense.toStringAsFixed(0)}', Icons.arrow_downward, Colors.red),
-        _buildStatBox('Net Profit', 'Rs. ${summary.netProfit.toStringAsFixed(0)}', Icons.account_balance_wallet, AppTheme.primaryMaroon),
+        if (!isManager) _buildStatBox('Total Income', 'Rs. ${summary.totalIncome.toStringAsFixed(0)}', Icons.arrow_upward, Colors.green),
+        if (!isManager) _buildStatBox('Total Expense', 'Rs. ${summary.totalExpense.toStringAsFixed(0)}', Icons.arrow_downward, Colors.red),
+        if (!isManager) _buildStatBox('Net Profit', 'Rs. ${summary.netProfit.toStringAsFixed(0)}', Icons.account_balance_wallet, AppTheme.primaryMaroon),
       ],
     );
   }
@@ -278,7 +282,7 @@ class _RealEstateFinancialReportScreenState extends State<RealEstateFinancialRep
     return label.replaceAll('_', ' ').toLowerCase().split(' ').map((s) => s[0].toUpperCase() + s.substring(1)).join(' ');
   }
 
-  Widget _buildProjectProfitTab() {
+  Widget _buildProjectProfitTab(bool isManager) {
     return Consumer<RealEstateProvider>(
       builder: (context, provider, child) {
         if (provider.isLoading && provider.projectProfitReport.isEmpty) {
@@ -295,7 +299,7 @@ class _RealEstateFinancialReportScreenState extends State<RealEstateFinancialRep
             children: [
               const Text('Project-wise Profitability', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppTheme.charcoalGray)),
               const SizedBox(height: 16),
-              ...report.map((item) => _buildProjectStatCard(item)),
+              ...report.map((item) => _buildProjectStatCard(item, isManager)),
             ],
           ),
         );
@@ -303,7 +307,7 @@ class _RealEstateFinancialReportScreenState extends State<RealEstateFinancialRep
     );
   }
 
-  Widget _buildProjectStatCard(dynamic item) {
+  Widget _buildProjectStatCard(dynamic item, bool isManager) {
     final profit = double.parse(item['profit'].toString());
     final isProfitable = profit >= 0;
 
@@ -319,27 +323,29 @@ class _RealEstateFinancialReportScreenState extends State<RealEstateFinancialRep
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(item['project_name'], style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.primaryMaroon)),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: (isProfitable ? Colors.green : Colors.red).withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(12),
+                if (!isManager)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: (isProfitable ? Colors.green : Colors.red).withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      isProfitable ? 'PROFITABLE' : 'LOSS',
+                      style: TextStyle(color: isProfitable ? Colors.green : Colors.red, fontSize: 12, fontWeight: FontWeight.bold),
+                    ),
                   ),
-                  child: Text(
-                    isProfitable ? 'PROFITABLE' : 'LOSS',
-                    style: TextStyle(color: isProfitable ? Colors.green : Colors.red, fontSize: 12, fontWeight: FontWeight.bold),
-                  ),
-                ),
               ],
             ),
             const Divider(),
-            Row(
-              children: [
-                _buildProjectMiniStat('Income', 'Rs. ${double.parse(item['total_income'].toString()).toStringAsFixed(0)}', Colors.green),
-                _buildProjectMiniStat('Expense', 'Rs. ${double.parse(item['total_expense'].toString()).toStringAsFixed(0)}', Colors.red),
-                _buildProjectMiniStat('Net Profit', 'Rs. ${profit.toStringAsFixed(0)}', profit >= 0 ? Colors.green : Colors.red),
-              ],
-            ),
+            if (!isManager)
+              Row(
+                children: [
+                  _buildProjectMiniStat('Income', 'Rs. ${double.parse(item['total_income'].toString()).toStringAsFixed(0)}', Colors.green),
+                  _buildProjectMiniStat('Expense', 'Rs. ${double.parse(item['total_expense'].toString()).toStringAsFixed(0)}', Colors.red),
+                  _buildProjectMiniStat('Net Profit', 'Rs. ${profit.toStringAsFixed(0)}', profit >= 0 ? Colors.green : Colors.red),
+                ],
+              ),
           ],
         ),
       ),

@@ -117,12 +117,15 @@ class _InstallmentDialogState extends State<InstallmentDialog> {
   Widget _buildSummaryHeader(BuildContext context, NumberFormat formatter) {
     return Consumer<RealEstateProvider>(
       builder: (context, provider, child) {
-        final paidInstallments = provider.installments
-            .where((i) => i.status == 'PAID')
-            .fold(0.0, (sum, i) => sum + i.amount);
+        // Find current sale from provider to get updated received_down_payment
+        final currentSale = provider.sales.firstWhere((s) => s.id == widget.sale.id, orElse: () => widget.sale);
         
-        final totalReceived = widget.sale.downPayment + paidInstallments;
-        final remaining = widget.sale.totalPrice - totalReceived;
+        final paidInstallments = provider.installments
+            .where((i) => i.status == 'PAID' || i.status == 'PARTIAL')
+            .fold(0.0, (sum, i) => sum + i.paidAmount);
+        
+        final totalReceived = currentSale.receivedDownPayment + paidInstallments;
+        final remaining = currentSale.totalPrice - totalReceived;
 
         return Container(
           padding: EdgeInsets.all(context.cardPadding),
@@ -130,7 +133,7 @@ class _InstallmentDialogState extends State<InstallmentDialog> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              _buildSummaryItem('Total Price', formatter.format(widget.sale.totalPrice), AppTheme.charcoalGray),
+              _buildSummaryItem('Total Price', formatter.format(currentSale.totalPrice), AppTheme.charcoalGray),
               _buildSummaryItem('Paid Amount', formatter.format(totalReceived), Colors.green),
               _buildSummaryItem('Remaining', formatter.format(remaining), Colors.red),
             ],
@@ -140,62 +143,158 @@ class _InstallmentDialogState extends State<InstallmentDialog> {
     );
   }
 
+  bool _showDownPaymentHistory = false;
+
   Widget _buildDownPaymentCard(BuildContext context, NumberFormat formatter) {
-    return Container(
-      margin: EdgeInsets.symmetric(horizontal: context.cardPadding, vertical: 8),
-      padding: EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Colors.blue.shade50, Colors.white],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.blue.withOpacity(0.2)),
-        boxShadow: [
-          BoxShadow(color: Colors.blue.withOpacity(0.05), blurRadius: 10, offset: Offset(0, 4)),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: EdgeInsets.all(8),
-            decoration: BoxDecoration(color: Colors.blue.shade100, shape: BoxShape.circle),
-            child: Icon(Icons.account_balance_wallet_rounded, color: Colors.blue.shade800, size: 20),
-          ),
-          SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('DOWN PAYMENT', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.blue.shade900)),
-                Text(formatter.format(widget.sale.receivedDownPayment), style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
-              ],
-            ),
-          ),
-          IconButton(
-            onPressed: () {
-               // Reuse ReceiptPreviewScreen if it can handle null installment as DP
-               Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => RealEstateReceiptPreviewScreen(
-                    sale: widget.sale,
-                    isBookingReceipt: true,
-                  ),
+    return Consumer<RealEstateProvider>(
+      builder: (context, provider, child) {
+        final currentSale = provider.sales.firstWhere((s) => s.id == widget.sale.id, orElse: () => widget.sale);
+        final isFullyPaid = currentSale.receivedDownPayment >= currentSale.downPayment;
+
+        return Column(
+          children: [
+            Container(
+              margin: EdgeInsets.symmetric(horizontal: context.cardPadding, vertical: 8),
+              padding: EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: isFullyPaid ? [Colors.green.shade50, Colors.white] : [Colors.blue.shade50, Colors.white],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
                 ),
-              );
-            },
-            icon: Icon(Icons.remove_red_eye_rounded, color: Colors.blue.shade800),
-            tooltip: 'View Receipt',
-          ),
-          IconButton(
-            onPressed: () => RealEstatePrintService.printDownPaymentReceipt(sale: widget.sale),
-            icon: Icon(Icons.print_rounded, color: Colors.blue.shade800),
-            tooltip: 'Print Receipt',
-          ),
-        ],
-      ),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: (isFullyPaid ? Colors.green : Colors.blue).withOpacity(0.2)),
+                boxShadow: [
+                  BoxShadow(color: (isFullyPaid ? Colors.green : Colors.blue).withOpacity(0.05), blurRadius: 10, offset: Offset(0, 4)),
+                ],
+              ),
+              child: Column(
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: EdgeInsets.all(8),
+                        decoration: BoxDecoration(color: (isFullyPaid ? Colors.green.shade100 : Colors.blue.shade100), shape: BoxShape.circle),
+                        child: Icon(Icons.account_balance_wallet_rounded, color: (isFullyPaid ? Colors.green.shade800 : Colors.blue.shade800), size: 20),
+                      ),
+                      SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Text('DOWN PAYMENT', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: (isFullyPaid ? Colors.green.shade900 : Colors.blue.shade900))),
+                                if (currentSale.downPaymentHistory.isNotEmpty)
+                                  IconButton(
+                                    constraints: BoxConstraints(),
+                                    padding: EdgeInsets.only(left: 4),
+                                    icon: Icon(_showDownPaymentHistory ? Icons.expand_less : Icons.history, size: 16, color: Colors.blueGrey),
+                                    onPressed: () => setState(() => _showDownPaymentHistory = !_showDownPaymentHistory),
+                                  ),
+                              ],
+                            ),
+                            Text(
+                              '${formatter.format(currentSale.receivedDownPayment)} / ${formatter.format(currentSale.downPayment)}', 
+                              style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16)
+                            ),
+                          ],
+                        ),
+                      ),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (currentSale.receivedDownPayment > 0) ...[
+                            IconButton(
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => RealEstateReceiptPreviewScreen(
+                                      sale: currentSale,
+                                      isBookingReceipt: true,
+                                    ),
+                                  ),
+                                );
+                              },
+                              icon: const Icon(Icons.remove_red_eye_rounded, color: AppTheme.primaryMaroon),
+                              tooltip: 'View Receipt',
+                            ),
+                            IconButton(
+                              onPressed: () => RealEstatePrintService.printDownPaymentReceipt(sale: currentSale),
+                              icon: const Icon(Icons.print_rounded, color: Colors.green),
+                              tooltip: 'Print Receipt',
+                            ),
+                          ],
+                          if (!isFullyPaid)
+                            ElevatedButton(
+                              onPressed: () => _payDownPayment(context, currentSale),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: currentSale.receivedDownPayment > 0 ? Colors.orange : AppTheme.primaryMaroon,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              ),
+                              child: Text(currentSale.receivedDownPayment > 0 ? 'Add Pay' : 'Pay', style: const TextStyle(fontSize: 10)),
+                            )
+                          else
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                              decoration: BoxDecoration(color: Colors.green, borderRadius: BorderRadius.circular(20)),
+                              child: const Text('PAID', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                            ),
+                        ],
+                      ),
+                    ],
+                  ),
+                  if (_showDownPaymentHistory && currentSale.downPaymentHistory.isNotEmpty) ...[
+                    const Divider(height: 20),
+                    ...currentSale.downPaymentHistory.map((h) => Container(
+                      padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
+                      margin: const EdgeInsets.only(bottom: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.withOpacity(0.03),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: Colors.blue.withOpacity(0.1)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(h.date, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.blueGrey)),
+                              Text(formatter.format(h.amount), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w900, color: AppTheme.primaryMaroon)),
+                            ],
+                          ),
+                          if ((h.receiptNumber != null && h.receiptNumber!.isNotEmpty) || (h.remarks != null && h.remarks!.isNotEmpty))
+                            Padding(
+                              padding: const EdgeInsets.only(top: 4.0),
+                              child: Row(
+                                children: [
+                                  if (h.receiptNumber != null && h.receiptNumber!.isNotEmpty) ...[
+                                    const Icon(Icons.receipt_long_rounded, size: 10, color: Colors.grey),
+                                    const SizedBox(width: 4),
+                                    Text('Ref: ${h.receiptNumber}', style: const TextStyle(fontSize: 10, color: Colors.grey, fontWeight: FontWeight.bold)),
+                                    if (h.remarks != null && h.remarks!.isNotEmpty) const SizedBox(width: 12),
+                                  ],
+                                  if (h.remarks != null && h.remarks!.isNotEmpty) ...[
+                                    const Icon(Icons.info_outline_rounded, size: 10, color: Colors.grey),
+                                    const SizedBox(width: 4),
+                                    Expanded(child: Text('Remarks: ${h.remarks}', style: const TextStyle(fontSize: 10, color: Colors.grey, fontStyle: FontStyle.italic))),
+                                  ],
+                                ],
+                              ),
+                            ),
+                        ],
+                      ),
+                    )).toList(),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -421,7 +520,7 @@ class _InstallmentDialogState extends State<InstallmentDialog> {
               child: const Text('Make Payment', style: TextStyle(color: Colors.white, fontSize: 18)),
             ),
             titlePadding: const EdgeInsets.all(0),
-            content: Container(
+            content: SizedBox(
               width: 450,
               child: SingleChildScrollView(
                 child: Column(
@@ -447,7 +546,6 @@ class _InstallmentDialogState extends State<InstallmentDialog> {
                           const Text('Payment Date', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey)),
                           const SizedBox(height: 8),
                           
-                          // Custom Toggle Calendar
                           InkWell(
                             onTap: () {
                               setDialogState(() {
@@ -489,7 +587,7 @@ class _InstallmentDialogState extends State<InstallmentDialog> {
                                 onSelectionChanged: (args) {
                                   setDialogState(() {
                                     selectedDate = args.value;
-                                    showCalendar = false; // Close after pick
+                                    showCalendar = false;
                                   });
                                 },
                                 selectionMode: DateRangePickerSelectionMode.single,
@@ -510,7 +608,12 @@ class _InstallmentDialogState extends State<InstallmentDialog> {
                     TextField(
                       controller: amountController,
                       keyboardType: TextInputType.number,
-                      style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 18),
+                      style: const TextStyle(
+                        color: Colors.black, 
+                        fontWeight: FontWeight.bold, 
+                        fontSize: 18,
+                        fontFamilyFallback: ['Jameel Noori Nastaleeq', 'Noto Nastaliq Urdu'],
+                      ),
                       onChanged: (val) {
                         setDialogState(() {
                            amountToPay = double.tryParse(val) ?? 0;
@@ -529,7 +632,12 @@ class _InstallmentDialogState extends State<InstallmentDialog> {
                     const SizedBox(height: 12),
                     TextField(
                       controller: receiptController,
-                      style: const TextStyle(color: Colors.black, fontSize: 16),
+                      style: const TextStyle(
+                        color: Colors.black, 
+                        fontWeight: FontWeight.bold, 
+                        fontSize: 18,
+                        fontFamilyFallback: ['Jameel Noori Nastaleeq', 'Noto Nastaliq Urdu'],
+                      ),
                       decoration: const InputDecoration(
                         labelText: 'Receipt / Voucher Number',
                         labelStyle: TextStyle(color: AppTheme.charcoalGray),
@@ -541,11 +649,15 @@ class _InstallmentDialogState extends State<InstallmentDialog> {
                       ),
                     ),
                     const SizedBox(height: 12),
-                    const SizedBox(height: 12),
                     TextField(
                       controller: remarksController,
                       maxLines: 2,
-                      style: const TextStyle(color: Colors.black, fontSize: 16),
+                      style: const TextStyle(
+                        color: Colors.black, 
+                        fontWeight: FontWeight.bold, 
+                        fontSize: 18,
+                        fontFamilyFallback: ['Jameel Noori Nastaleeq', 'Noto Nastaliq Urdu'],
+                      ),
                       decoration: const InputDecoration(
                         labelText: 'Remarks (e.g. Cash, Bank Transfer)',
                         labelStyle: TextStyle(color: AppTheme.charcoalGray),
@@ -640,6 +752,255 @@ class _InstallmentDialogState extends State<InstallmentDialog> {
             duration: const Duration(seconds: 3),
             content: Text(newStatus == 'PAID' ? 'Installment fully paid!' : 'Partial payment recorded successfully!')
           ),
+        );
+      }
+    }
+  }
+
+  void _payDownPayment(BuildContext rootContext, RealEstateSale sale) async {
+    final TextEditingController amountController = TextEditingController(
+      text: (sale.downPayment - sale.receivedDownPayment).toStringAsFixed(0)
+    );
+    final TextEditingController receiptController = TextEditingController();
+    final TextEditingController remarksController = TextEditingController();
+    
+    DateTime selectedDate = DateTime.now();
+    bool showCalendar = false;
+
+    final result = await showDialog<Map<String, dynamic>>(
+      context: rootContext,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          double? amountToPay = double.tryParse(amountController.text) ?? 0;
+          double remainingAfterThis = sale.downPayment - sale.receivedDownPayment - amountToPay;
+          
+          return AlertDialog(
+            title: Container(
+              padding: const EdgeInsets.all(12),
+              decoration: const BoxDecoration(
+                color: AppTheme.primaryMaroon,
+                borderRadius: BorderRadius.only(topLeft: Radius.circular(4), topRight: Radius.circular(4)),
+              ),
+              child: const Text('Pay Down Payment', style: TextStyle(color: Colors.white, fontSize: 18)),
+            ),
+            titlePadding: const EdgeInsets.all(0),
+            content: SizedBox(
+              width: 450,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: 16),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(15),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade100,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: Colors.grey.shade300),
+                      ),
+                      child: Column(
+                        children: [
+                          _dialogInfoRow('Total Down Payment:', 'Rs. ${sale.downPayment.toStringAsFixed(0)}', Colors.black87),
+                          _dialogInfoRow('Already Paid:', 'Rs. ${sale.receivedDownPayment.toStringAsFixed(0)}', Colors.green),
+                          _dialogInfoRow('Pending Balance:', 'Rs. ${(sale.downPayment - sale.receivedDownPayment).toStringAsFixed(0)}', Colors.red),
+                          const Divider(height: 20),
+                          
+                          const Text('Payment Date', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey)),
+                          const SizedBox(height: 8),
+                          
+                          InkWell(
+                            onTap: () {
+                              setDialogState(() {
+                                showCalendar = !showCalendar;
+                              });
+                            },
+                            child: Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10),
+                              decoration: BoxDecoration(
+                                color: AppTheme.pureWhite,
+                                border: Border.all(color: AppTheme.primaryMaroon, width: 2),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  const Icon(Icons.edit_calendar, color: AppTheme.primaryMaroon),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    DateFormat('EEEE, dd MMM yyyy').format(selectedDate),
+                                    style: const TextStyle(fontWeight: FontWeight.w900, color: AppTheme.primaryMaroon, fontSize: 15),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          
+                          if (showCalendar) ...[
+                            const SizedBox(height: 10),
+                            Container(
+                              height: 250,
+                              decoration: BoxDecoration(
+                                border: Border.all(color: Colors.grey.shade300),
+                                borderRadius: BorderRadius.circular(8),
+                                color: Colors.white,
+                              ),
+                              child: SfDateRangePicker(
+                                onSelectionChanged: (args) {
+                                  setDialogState(() {
+                                    selectedDate = args.value;
+                                    showCalendar = false;
+                                  });
+                                },
+                                selectionMode: DateRangePickerSelectionMode.single,
+                                initialSelectedDate: selectedDate,
+                                headerStyle: const DateRangePickerHeaderStyle(
+                                  textAlign: TextAlign.center,
+                                  textStyle: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.primaryMaroon)
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    const Text('Payment Details', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: amountController,
+                      keyboardType: TextInputType.number,
+                      style: const TextStyle(
+                        color: Colors.black, 
+                        fontWeight: FontWeight.bold, 
+                        fontSize: 18,
+                        fontFamilyFallback: ['Jameel Noori Nastaleeq', 'Noto Nastaliq Urdu'],
+                      ),
+                      onChanged: (val) {
+                        setDialogState(() {
+                           amountToPay = double.tryParse(val) ?? 0;
+                           remainingAfterThis = sale.downPayment - sale.receivedDownPayment - amountToPay!;
+                        });
+                      },
+                      decoration: const InputDecoration(
+                        labelText: 'Amount to Pay Now',
+                        labelStyle: TextStyle(color: AppTheme.primaryMaroon, fontWeight: FontWeight.bold),
+                        border: OutlineInputBorder(),
+                        prefixText: 'Rs. ',
+                        filled: true,
+                        fillColor: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: receiptController,
+                      style: const TextStyle(
+                        color: Colors.black, 
+                        fontWeight: FontWeight.bold, 
+                        fontSize: 18,
+                        fontFamilyFallback: ['Jameel Noori Nastaleeq', 'Noto Nastaliq Urdu'],
+                      ),
+                      decoration: const InputDecoration(
+                        labelText: 'Receipt / Voucher Number',
+                        labelStyle: TextStyle(color: AppTheme.primaryMaroon),
+                        border: OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.receipt_long_rounded, color: AppTheme.primaryMaroon),
+                        filled: true,
+                        fillColor: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: remarksController,
+                      maxLines: 2,
+                      style: const TextStyle(
+                        color: Colors.black, 
+                        fontWeight: FontWeight.bold, 
+                        fontSize: 18,
+                        fontFamilyFallback: ['Jameel Noori Nastaleeq', 'Noto Nastaliq Urdu'],
+                      ),
+                      decoration: const InputDecoration(
+                        labelText: 'Remarks',
+                        labelStyle: TextStyle(color: AppTheme.primaryMaroon),
+                        border: OutlineInputBorder(),
+                        filled: true,
+                        fillColor: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: remainingAfterThis <= 0 ? Colors.green.withOpacity(0.1) : Colors.orange.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text('Balance After This:', style: TextStyle(fontWeight: FontWeight.bold)),
+                          Text('Rs. ${remainingAfterThis.clamp(0, double.infinity).toStringAsFixed(0)}', 
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold, 
+                              color: remainingAfterThis <= 0 ? Colors.green : Colors.red,
+                              fontSize: 16
+                            )
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext), 
+                child: const Text('Cancel')
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.pop(dialogContext, {
+                    'amount': double.tryParse(amountController.text),
+                    'remarks': remarksController.text,
+                    'receipt_number': receiptController.text,
+                    'payment_date': selectedDate,
+                  });
+                },
+                style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryMaroon),
+                child: const Text('Confirm Payment', style: TextStyle(color: Colors.white)),
+              ),
+            ],
+          );
+        }
+      ),
+    );
+
+    if (result == null || result['amount'] == null || result['amount'] <= 0) return;
+
+    final double amount = result['amount'];
+    final String remarks = result['remarks'];
+    final String receiptNumber = result['receipt_number'];
+    final DateTime paymentDate = result['payment_date'];
+
+    final dateStr = '${paymentDate.year}-${paymentDate.month.toString().padLeft(2, '0')}-${paymentDate.day.toString().padLeft(2, '0')}';
+    
+    final success = await rootContext.read<RealEstateProvider>().payDownPayment(
+      sale.id!,
+      {
+        'amount': amount,
+        'payment_date': dateStr,
+        'receipt_number': receiptNumber,
+        'remarks': remarks,
+      },
+    );
+
+    if (success) {
+      if (mounted) {
+        ScaffoldMessenger.of(rootContext).showSnackBar(
+          const SnackBar(backgroundColor: Colors.green, content: Text('Down payment recorded successfully!'))
         );
       }
     }

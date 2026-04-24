@@ -472,7 +472,7 @@ class _FinanceAddDialogState extends State<FinanceAddDialog> {
   Widget build(BuildContext context) {
     final provider = context.read<RealEstateProvider>();
     final types = widget.isIncome 
-        ? ['COMMISSION_RECEIVED', 'INSTALLMENT_PAYMENT', 'OTHER']
+        ? ['COMMISSION_RECEIVED', 'INSTALLMENT_PAYMENT', 'DOWN_PAYMENT', 'OTHER']
         : ['LANDOWNER_PAYOUT', 'COMMISSION_PAID', 'OFFICE_RENT', 'SALARY', 'MARKETING', 'UTILITY', 'MISC'];
     final themeColor = widget.isIncome ? Colors.green : Colors.red;
 

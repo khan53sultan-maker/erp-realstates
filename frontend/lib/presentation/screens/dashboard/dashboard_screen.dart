@@ -25,11 +25,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         final dashboardProvider = context.read<DashboardProvider>();
         final authProvider = context.read<AuthProvider>();
 
-        // ✅ Redirect MANAGER away from dashboard to Projects (index 1)
-        if (authProvider.currentUser?.role == 'MANAGER' &&
-            (dashboardProvider.selectedMenuIndex == 0 || dashboardProvider.selectedMenuIndex == 27)) {
-          dashboardProvider.selectMenu(1);
-        }
+        // Removed redirect for MANAGER so they can see the dashboard
 
         dashboardProvider.setInstance(); // Set global instance
         dashboardProvider.initialize();

@@ -38,6 +38,7 @@ class _AddSaleDialogState extends State<AddSaleDialog> {
   final _downPaymentController = TextEditingController(); // Required (30%)
   final _receivedDownPaymentController = TextEditingController(); // Actual
   final _receiptNumberController = TextEditingController(); // Manual Receipt No
+  final _remarksController = TextEditingController(); // Down Payment Remarks
   final _installmentsCountController = TextEditingController(text: '12');
   final _semiAnnualBalloonPaymentController = TextEditingController(text: '0');
   
@@ -86,6 +87,7 @@ class _AddSaleDialogState extends State<AddSaleDialog> {
         _downPaymentController.text = widget.sale!.downPayment.toString();
         _receivedDownPaymentController.text = widget.sale!.receivedDownPayment.toString();
         _receiptNumberController.text = widget.sale!.receiptNumber ?? '';
+        _remarksController.text = widget.sale!.remarks ?? '';
         _installmentsCountController.text = widget.sale!.installmentsCount.toString();
         _semiAnnualBalloonPaymentController.text = widget.sale!.semiAnnualBalloonPayment.toString();
         _currentPlotPrice = widget.sale!.totalPrice;
@@ -138,6 +140,7 @@ class _AddSaleDialogState extends State<AddSaleDialog> {
     _newDealerPaymentController.dispose();
     _newLandownerCommPaymentController.dispose();
     _newLandownerSharePaymentController.dispose();
+    _remarksController.dispose();
     _semiAnnualBalloonPaymentController.dispose();
     _landownerRemarksController.dispose();
     _projectSearchController.dispose();
@@ -179,6 +182,7 @@ class _AddSaleDialogState extends State<AddSaleDialog> {
           downPayment: double.tryParse(_downPaymentController.text) ?? 0,
           receivedDownPayment: double.tryParse(_receivedDownPaymentController.text) ?? 0,
           receiptNumber: _receiptNumberController.text,
+          remarks: _remarksController.text,
           installmentsCount: int.tryParse(_installmentsCountController.text) ?? 12,
           totalPrice: _currentPlotPrice,
           remainingBalance: _remainingBalance,
@@ -328,6 +332,21 @@ class _AddSaleDialogState extends State<AddSaleDialog> {
                     prefixIcon: Icon(Icons.receipt, color: AppTheme.primaryMaroon),
                     hintText: 'Enter manual receipt number for booking...',
                     border: OutlineInputBorder(),
+                    filled: true,
+                    fillColor: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _remarksController,
+                  style: TextStyle(color: AppTheme.charcoalGray, fontWeight: FontWeight.bold, fontSize: context.bodyFontSize),
+                  decoration: const InputDecoration(
+                    labelText: 'Down Payment Remarks (e.g. Cash, Cheque)',
+                    prefixIcon: Icon(Icons.info_outline_rounded, color: AppTheme.primaryMaroon),
+                    hintText: 'Any specific details about initial payment...',
+                    border: OutlineInputBorder(),
+                    filled: true,
+                    fillColor: Colors.white,
                   ),
                 ),
                 const SizedBox(height: 16),

@@ -59,9 +59,7 @@ class DashboardContent extends StatelessWidget {
     switch (selectedIndex) {
       case 0:
       case 27:
-        if (userRole == 'MANAGER') {
-          return const ProjectPage();
-        }
+        return const RealEstateDashboardScreen();
         return const RealEstateDashboardScreen();
       case 1:
         return const ProjectPage();
