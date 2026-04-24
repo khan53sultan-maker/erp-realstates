@@ -488,7 +488,7 @@ class FinancialReportViewSet(viewsets.ViewSet):
         """Module G: Real Estate Dashboard Stats"""
         today = timezone.now().date()
         
-        from django.db.models import Sum, Count, Q, F
+        from django.db.models import Sum, Count, Q, F, Value
         from django.db.models.functions import Coalesce, TruncMonth
         from django.db.models import DecimalField, FloatField
         
@@ -498,7 +498,7 @@ class FinancialReportViewSet(viewsets.ViewSet):
             'plot__project__id', 
             'plot__project__name'
         ).annotate(
-            total_sales=Coalesce(Sum('total_price'), 0, output_field=FloatField()),
+            total_sales=Coalesce(Sum('total_price'), Value(0), output_field=FloatField()),
             sales_count=Count('id')
         )
         
@@ -524,60 +524,60 @@ class FinancialReportViewSet(viewsets.ViewSet):
         # 2. Commissions
         total_comm_received = RealEstateIncome.objects.filter(
             income_type='COMMISSION_RECEIVED'
-        ).aggregate(total=Coalesce(Sum('amount'), 0, output_field=DecimalField()))['total']
+        ).aggregate(total=Coalesce(Sum('amount'), Value(0), output_field=DecimalField()))['total']
         
         total_comm_paid = RealEstateSale.objects.aggregate(
-            total=Coalesce(Sum('dealer_paid_amount'), 0, output_field=DecimalField())
+            total=Coalesce(Sum('dealer_paid_amount'), Value(0), output_field=DecimalField())
         )['total']
         
         pending_comm = RealEstateSale.objects.exclude(
             commission_status='PAID'
         ).aggregate(
-            total=Coalesce(Sum(F('dealer_commission') - F('dealer_paid_amount')), 0, output_field=DecimalField())
+            total=Coalesce(Sum(F('dealer_commission') - F('dealer_paid_amount')), Value(0), output_field=DecimalField())
         )['total']
 
         # 3. Net Profit (Overall)
-        grand_total_income = RealEstateIncome.objects.aggregate(total=Coalesce(Sum('amount'), 0, output_field=DecimalField()))['total']
-        grand_total_expense = RealEstateExpense.objects.aggregate(total=Coalesce(Sum('amount'), 0, output_field=DecimalField()))['total']
+        grand_total_income = RealEstateIncome.objects.aggregate(total=Coalesce(Sum('amount'), Value(0), output_field=DecimalField()))['total']
+        grand_total_expense = RealEstateExpense.objects.aggregate(total=Coalesce(Sum('amount'), Value(0), output_field=DecimalField()))['total']
         net_profit = grand_total_income - grand_total_expense
         
         # 3.1 Total Receivables (Remaining Balances from Sales)
-        total_receivables = RealEstateSale.objects.aggregate(total=Coalesce(Sum('remaining_balance'), 0, output_field=DecimalField()))['total']
+        total_receivables = RealEstateSale.objects.aggregate(total=Coalesce(Sum('remaining_balance'), Value(0), output_field=DecimalField()))['total']
 
         # 4. Plots
         available_plots = Plot.objects.filter(status='AVAILABLE').count()
 
         # 5. Overall & Today's Stats
-        total_sales_all_time = RealEstateSale.objects.aggregate(total=Coalesce(Sum('total_price'), 0, output_field=DecimalField()))['total']
-        today_sales = RealEstateSale.objects.filter(sale_date=today).aggregate(total=Coalesce(Sum('total_price'), 0, output_field=DecimalField()))['total']
-        today_income = RealEstateIncome.objects.filter(date=today).aggregate(total=Coalesce(Sum('amount'), 0, output_field=DecimalField()))['total']
-        today_expense = RealEstateExpense.objects.filter(date=today).aggregate(total=Coalesce(Sum('amount'), 0, output_field=DecimalField()))['total']
+        total_sales_all_time = RealEstateSale.objects.aggregate(total=Coalesce(Sum('total_price'), Value(0), output_field=DecimalField()))['total']
+        today_sales = RealEstateSale.objects.filter(sale_date=today).aggregate(total=Coalesce(Sum('total_price'), Value(0), output_field=DecimalField()))['total']
+        today_income = RealEstateIncome.objects.filter(date=today).aggregate(total=Coalesce(Sum('amount'), Value(0), output_field=DecimalField()))['total']
+        today_expense = RealEstateExpense.objects.filter(date=today).aggregate(total=Coalesce(Sum('amount'), Value(0), output_field=DecimalField()))['total']
 
         # 6. Charts Data
         # Monthly Sales
         monthly_sales = RealEstateSale.objects.annotate(
             month=TruncMonth('sale_date')
         ).values('month').annotate(
-            total=Coalesce(Sum('total_price'), 0, output_field=FloatField())
+            total=Coalesce(Sum('total_price'), Value(0), output_field=FloatField())
         ).order_by('month')
 
         # Monthly Income vs Expense
         monthly_income = RealEstateIncome.objects.annotate(
             month=TruncMonth('date')
         ).values('month').annotate(
-            total=Coalesce(Sum('amount'), 0, output_field=FloatField())
+            total=Coalesce(Sum('amount'), Value(0), output_field=FloatField())
         ).order_by('month')
 
         monthly_expense = RealEstateExpense.objects.annotate(
             month=TruncMonth('date')
         ).values('month').annotate(
-            total=Coalesce(Sum('amount'), 0, output_field=FloatField())
+            total=Coalesce(Sum('amount'), Value(0), output_field=FloatField())
         ).order_by('month')
 
         # Dealer Performance
         dealer_performance = Dealer.objects.annotate(
-            s_val=Coalesce(Sum('dealer_sales__total_price'), 0, output_field=FloatField()),
-            c_val=Coalesce(Sum('dealer_sales__dealer_commission'), 0, output_field=FloatField())
+            s_val=Coalesce(Sum('dealer_sales__total_price'), Value(0), output_field=FloatField()),
+            c_val=Coalesce(Sum('dealer_sales__dealer_commission'), Value(0), output_field=FloatField())
         ).values('id', 'name', 's_val', 'c_val').order_by('-s_val')[:5]
         
         # Clean up dealer performance keys for frontend
