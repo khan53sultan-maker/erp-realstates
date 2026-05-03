@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../../src/providers/real_estate_provider.dart';
 import '../../../src/theme/app_theme.dart';
 import '../../../src/utils/responsive_breakpoints.dart';
+import '../../../src/providers/auth_provider.dart';
 import '../../widgets/real_estate/dealer_table.dart';
 import '../../widgets/real_estate/add_dealer_dialog.dart';
 
@@ -53,6 +54,9 @@ class _DealerPageState extends State<DealerPage> {
             totalSales += dealer.totalSalesCount;
           }
 
+          final userRole = context.read<AuthProvider>().currentUser?.role ?? 'ADMIN';
+          final isManager = userRole == 'MANAGER';
+
           return Padding(
             padding: EdgeInsets.all(context.mainPadding),
             child: SingleChildScrollView(
@@ -70,9 +74,11 @@ class _DealerPageState extends State<DealerPage> {
                     children: [
                       _summaryCard('TOTAL DEALERS', provider.dealers.length.toDouble(), Colors.blue.shade800, Icons.groups_rounded, isCurrency: false),
                       _summaryCard('TOTAL SALES', totalSales.toDouble(), Colors.green.shade700, Icons.shopping_basket_rounded, isCurrency: false),
-                      _summaryCard('TOTAL COMMISSIONS', totalEarned, Colors.orange.shade800, Icons.payments_rounded),
-                      _summaryCard('PAID AMOUNT', totalPaid, Colors.teal, Icons.check_circle_rounded),
-                      _summaryCard('DEALER PAYABLES', totalEarned - totalPaid, Colors.red.shade700, Icons.pending_rounded),
+                      if (!isManager) ...[
+                        _summaryCard('TOTAL COMMISSIONS', totalEarned, Colors.orange.shade800, Icons.payments_rounded),
+                        _summaryCard('PAID AMOUNT', totalPaid, Colors.teal, Icons.check_circle_rounded),
+                        _summaryCard('DEALER PAYABLES', totalEarned - totalPaid, Colors.red.shade700, Icons.pending_rounded),
+                      ],
                     ],
                   ),
                   const SizedBox(height: 20),

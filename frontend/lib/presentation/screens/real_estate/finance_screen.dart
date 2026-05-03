@@ -470,13 +470,14 @@ class _FinanceAddDialogState extends State<FinanceAddDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final provider = context.read<RealEstateProvider>();
     final types = widget.isIncome 
         ? ['COMMISSION_RECEIVED', 'INSTALLMENT_PAYMENT', 'DOWN_PAYMENT', 'OTHER']
         : ['LANDOWNER_PAYOUT', 'COMMISSION_PAID', 'OFFICE_RENT', 'SALARY', 'MARKETING', 'UTILITY', 'MISC'];
     final themeColor = widget.isIncome ? Colors.green : Colors.red;
 
-    return Dialog(
+    return Consumer<RealEstateProvider>(
+      builder: (context, provider, child) {
+        return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       child: Container(
         width: 500,
@@ -548,7 +549,7 @@ class _FinanceAddDialogState extends State<FinanceAddDialog> {
                              displayStringForOption: (s) => '${s.plotNumber ?? "N/A"} - ${s.customerName ?? "Unknown"}',
                              initialValue: _selectedSale != null ? TextEditingValue(text: '${_selectedSale!.plotNumber ?? "N/A"} - ${_selectedSale!.customerName ?? "Unknown"}') : null,
                              optionsBuilder: (textEditingValue) {
-                               if (textEditingValue.text.isEmpty) return provider.sales;
+                               if (textEditingValue.text.isEmpty || (_selectedSale != null && textEditingValue.text == '${_selectedSale!.plotNumber ?? "N/A"} - ${_selectedSale!.customerName ?? "Unknown"}')) return provider.sales;
                                return provider.sales.where((s) {
                                  final plot = (s.plotNumber ?? "").toLowerCase();
                                  final cust = (s.customerName ?? "").toLowerCase();
@@ -573,22 +574,29 @@ class _FinanceAddDialogState extends State<FinanceAddDialog> {
                                  }
                                });
                              },
-                             fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
-                               return TextFormField(
-                                 controller: controller,
-                                 focusNode: focusNode,
-                                 style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: AppTheme.charcoalGray),
-                                 decoration: const InputDecoration(
-                                   hintText: 'Type plot # or name...',
-                                   hintStyle: TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: Colors.grey),
-                                   border: InputBorder.none,
-                                   focusedBorder: InputBorder.none,
-                                   enabledBorder: InputBorder.none,
-                                   isDense: true,
-                                   contentPadding: EdgeInsets.symmetric(vertical: 10),
-                                 ),
-                               );
-                             },
+                          fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+                            return TextFormField(
+                              controller: controller,
+                              focusNode: focusNode,
+                              onTap: () {
+                                if (controller.text.isEmpty) {
+                                  // Trigger options builder by setting text to empty string if it was already empty
+                                  controller.text = '';
+                                }
+                              },
+                              style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: AppTheme.charcoalGray),
+                              decoration: const InputDecoration(
+                                hintText: 'Type plot # or name...',
+                                hintStyle: TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: Colors.grey),
+                                suffixIcon: Icon(Icons.arrow_drop_down, color: AppTheme.primaryMaroon),
+                                border: InputBorder.none,
+                                focusedBorder: InputBorder.none,
+                                enabledBorder: InputBorder.none,
+                                isDense: true,
+                                contentPadding: EdgeInsets.symmetric(vertical: 10),
+                              ),
+                            );
+                          },
                              optionsViewBuilder: (context, onSelected, options) {
                                return Align(
                                  alignment: Alignment.topLeft,
@@ -640,72 +648,81 @@ class _FinanceAddDialogState extends State<FinanceAddDialog> {
                            ),
                        ],
                        const SizedBox(height: 20),
-                       _buildDialogField(
-                         label: 'Project (Optional)',
-                         icon: Icons.business,
-                         child: Autocomplete<RealEstateProject>(
-                           displayStringForOption: (p) => p.name,
-                           initialValue: TextEditingValue(text: provider.projects.any((p) => p.id == _selectedProjectId) 
-                               ? provider.projects.firstWhere((p) => p.id == _selectedProjectId).name 
-                               : 'General / Other'),
-                           optionsBuilder: (textEditingValue) {
-                             final generalOption = RealEstateProject(name: 'General / Other', location: '', landownerName: '', totalPlots: 0, plotSizes: '');
-                             final list = [generalOption, ...provider.projects];
-                             if (textEditingValue.text.isEmpty) return list;
-                             return list.where((p) => p.name.toLowerCase().contains(textEditingValue.text.toLowerCase()));
-                           },
-                           onSelected: (p) {
-                             setState(() {
-                               _selectedProjectId = (p.name == 'General / Other') ? null : p.id;
-                             });
-                           },
-                           fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
-                             // Sync the internal controller with our member controller
-                             if (controller.text != _projectSearchController.text && _projectSearchController.text != 'Search Project...') {
-                                Future.microtask(() => controller.text = _projectSearchController.text);
-                             }
-                             return TextFormField(
-                               controller: controller,
-                               focusNode: focusNode,
-                               style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: AppTheme.charcoalGray),
-                               decoration: const InputDecoration(
-                                 hintText: 'Search Project...',
-                                 hintStyle: TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: Colors.grey),
-                                 border: InputBorder.none,
-                                 focusedBorder: InputBorder.none,
-                                 enabledBorder: InputBorder.none,
-                                 isDense: true,
-                                 contentPadding: EdgeInsets.symmetric(vertical: 10),
-                               ),
-                             );
-                           },
-                           optionsViewBuilder: (context, onSelected, options) {
-                             return Align(
-                                alignment: Alignment.topLeft,
-                                child: Material(
-                                  elevation: 8.0,
-                                  borderRadius: BorderRadius.circular(12),
-                                  child: Container(
-                                    width: 452,
-                                    constraints: const BoxConstraints(maxHeight: 200),
-                                    child: ListView.builder(
-                                      padding: EdgeInsets.zero,
-                                      shrinkWrap: true,
-                                      itemCount: options.length,
-                                      itemBuilder: (context, index) {
-                                        final RealEstateProject option = options.elementAt(index);
-                                        return ListTile(
-                                          title: Text(option.name, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
-                                          onTap: () => onSelected(option),
-                                        );
-                                      },
-                                    ),
+                      _buildDialogField(
+                        label: 'Project (Optional)',
+                        icon: Icons.business,
+                        child: Autocomplete<RealEstateProject>(
+                          displayStringForOption: (p) => p.name,
+                          initialValue: TextEditingValue(text: provider.projects.any((p) => p.id == _selectedProjectId) 
+                              ? provider.projects.firstWhere((p) => p.id == _selectedProjectId).name 
+                              : (_selectedProjectId == null ? 'General / Other' : '')),
+                          optionsBuilder: (textEditingValue) {
+                            final generalOption = RealEstateProject(name: 'General / Other', location: '', landownerName: '', totalPlots: 0, plotSizes: '');
+                            final list = [generalOption, ...provider.projects];
+                            
+                            // If empty OR matches "General / Other" OR matches selected project name, show all
+                            final currentText = textEditingValue.text;
+                            bool isDefaultOrSelected = currentText.isEmpty || currentText == 'General / Other';
+                            if (!isDefaultOrSelected && _selectedProjectId != null) {
+                               final selectedProject = provider.projects.firstWhere((p) => p.id == _selectedProjectId, orElse: () => generalOption);
+                               if (currentText == selectedProject.name) isDefaultOrSelected = true;
+                            }
+
+                            if (isDefaultOrSelected) return list;
+                            return list.where((p) => p.name.toLowerCase().contains(currentText.toLowerCase()));
+                          },
+                          onSelected: (p) {
+                            setState(() {
+                              _selectedProjectId = (p.name == 'General / Other') ? null : p.id;
+                            });
+                          },
+                          fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+                            return TextFormField(
+                              controller: controller,
+                              focusNode: focusNode,
+                              onTap: () {
+                                if (controller.text.isEmpty) {
+                                  controller.text = '';
+                                }
+                              },
+                              style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: AppTheme.charcoalGray),
+                              decoration: const InputDecoration(
+                                hintText: 'Search or select project...',
+                                hintStyle: TextStyle(fontWeight: FontWeight.w400, fontSize: 14, color: Colors.grey),
+                                border: InputBorder.none,
+                                suffixIcon: Icon(Icons.arrow_drop_down, color: Colors.grey),
+                                isDense: true,
+                                contentPadding: EdgeInsets.symmetric(vertical: 8),
+                              ),
+                            );
+                          },
+                          optionsViewBuilder: (context, onSelected, options) {
+                            return Align(
+                              alignment: Alignment.topLeft,
+                              child: Material(
+                                elevation: 8.0,
+                                borderRadius: BorderRadius.circular(12),
+                                child: Container(
+                                  width: 452,
+                                  constraints: const BoxConstraints(maxHeight: 250),
+                                  child: ListView.builder(
+                                    padding: EdgeInsets.zero,
+                                    shrinkWrap: true,
+                                    itemCount: options.length,
+                                    itemBuilder: (context, index) {
+                                      final option = options.elementAt(index);
+                                      return ListTile(
+                                        title: Text(option.name, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+                                        onTap: () => onSelected(option),
+                                      );
+                                    },
                                   ),
                                 ),
-                              );
-                           },
-                         ),
-                       ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
                        const SizedBox(height: 20),
                        _buildDialogField(
                          label: 'Amount (PKR)',
@@ -864,6 +881,8 @@ class _FinanceAddDialogState extends State<FinanceAddDialog> {
           ),
         ),
       ),
+    );
+      },
     );
   }
 

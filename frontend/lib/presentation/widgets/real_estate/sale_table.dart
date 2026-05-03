@@ -5,6 +5,7 @@ import '../../../src/theme/app_theme.dart';
 import '../../../src/utils/responsive_breakpoints.dart';
 import '../../../src/models/real_estate/real_estate_sale_model.dart';
 import '../../../src/models/real_estate/plot_model.dart';
+import '../../../src/providers/auth_provider.dart';
 import '../../../src/providers/real_estate_provider.dart';
 import 'installment_dialog.dart';
 import 'add_sale_dialog.dart';
@@ -42,6 +43,9 @@ class _SaleTableState extends State<SaleTable> {
       builder: (context, provider, child) {
         final salesList = widget.sales;
         final allPlots = provider.plots;
+        final userRole = context.read<AuthProvider>().currentUser?.role ?? 'ADMIN';
+        final isManager = userRole == 'MANAGER';
+        final double totalTableWidth = isManager ? 1800.0 : 3326.0;
 
         if (salesList.isEmpty) {
           return Center(
@@ -124,20 +128,24 @@ class _SaleTableState extends State<SaleTable> {
                             _buildFixedHeaderCell('Plot Price', 150),
                             _buildFixedHeaderCell('Received', 150),
                             _buildFixedHeaderCell('Remaining', 150),
-                            _buildFixedHeaderCell('Co. Comm', 150),
-                            _buildFixedHeaderCell('Co. Recv', 150),
+                            if (!isManager) ...[
+                              _buildFixedHeaderCell('Co. Comm', 150),
+                              _buildFixedHeaderCell('Co. Recv', 150),
+                            ],
                             _buildFixedHeaderCell('Sold By', 150),
                             _buildFixedHeaderCell('Req. Down', 150),
                             _buildFixedHeaderCell('Recv. Down', 150),
-                            _buildFixedHeaderCell('Dealer Comm', 150),
-                            _buildFixedHeaderCell('Earned', 150),
-                            _buildFixedHeaderCell('Dealer Paid', 150),
-                            _buildFixedHeaderCell('Dealer Rem.', 150),
-                            _buildFixedHeaderCell('L/O Share', 150),
-                            _buildFixedHeaderCell('L/O Paid', 150),
-                            _buildFixedHeaderCell('L/O Rem.', 150),
+                            if (!isManager) ...[
+                              _buildFixedHeaderCell('Dealer Comm', 150),
+                              _buildFixedHeaderCell('Earned', 150),
+                              _buildFixedHeaderCell('Dealer Paid', 150),
+                              _buildFixedHeaderCell('Dealer Rem.', 150),
+                              _buildFixedHeaderCell('L/O Share', 150),
+                              _buildFixedHeaderCell('L/O Paid', 150),
+                              _buildFixedHeaderCell('L/O Rem.', 150),
+                            ],
                             _buildFixedHeaderCell('Status', 120),
-                            _buildFixedHeaderCell('Actions', 280), 
+                            _buildFixedHeaderCell('Actions', 280),
                           ],
                         ),
                       ),
@@ -163,18 +171,22 @@ class _SaleTableState extends State<SaleTable> {
                               _buildFixedDataCell('Rs.${sale.totalPrice.toStringAsFixed(0)}', 150, isBold: true),
                               _buildFixedDataCell('Rs.${sale.totalReceived.toStringAsFixed(0)}', 150, color: Colors.green.shade700, hasIcon: true),
                               _buildFixedDataCell('Rs.${sale.currentBalance.toStringAsFixed(0)}', 150, color: Colors.redAccent, isBold: true),
-                              _buildFixedDataCell('Rs.${sale.landownerCommission.toStringAsFixed(0)}', 150, color: Colors.blue.shade900),
-                              _buildFixedDataCell('Rs.${sale.landownerCommissionReceived.toStringAsFixed(0)}', 150, color: Colors.blue.shade700, hasIcon: true),
+                              if (!isManager) ...[
+                                _buildFixedDataCell('Rs.${sale.landownerCommission.toStringAsFixed(0)}', 150, color: Colors.blue.shade900),
+                                _buildFixedDataCell('Rs.${sale.landownerCommissionReceived.toStringAsFixed(0)}', 150, color: Colors.blue.shade700, hasIcon: true),
+                              ],
                               _buildFixedDataCell(sale.dealerName ?? '-', 150),
                               _buildFixedDataCell('Rs.${sale.downPayment.toStringAsFixed(0)}', 150),
                               _buildFixedDataCell('Rs.${sale.receivedDownPayment.toStringAsFixed(0)}', 150, color: Colors.green.shade900),
-                              _buildFixedDataCell('Rs.${sale.dealerCommission.toStringAsFixed(0)}', 150, color: Colors.orange.shade900),
-                              _buildFixedDataCell('Rs.${sale.currentDealerCommission.toStringAsFixed(0)}', 150, color: Colors.deepOrange, isBold: true),
-                              _buildFixedDataCell('Rs.${sale.dealerPaidAmount.toStringAsFixed(0)}', 150, color: Colors.green, hasIcon: true),
-                              _buildFixedDataCell('Rs.${sale.dealerCommissionRemaining.toStringAsFixed(0)}', 150, color: Colors.red),
-                              _buildFixedDataCell('Rs.${sale.landownerTotalShare.toStringAsFixed(0)}', 150, color: Colors.purple.shade900),
-                              _buildFixedDataCell('Rs.${sale.landownerPaidAmount.toStringAsFixed(0)}', 150, color: Colors.purple.shade700, hasIcon: true),
-                              _buildFixedDataCell('Rs.${sale.landownerShareRemaining.toStringAsFixed(0)}', 150, color: Colors.red.shade900, isBold: true),
+                              if (!isManager) ...[
+                                _buildFixedDataCell('Rs.${sale.dealerCommission.toStringAsFixed(0)}', 150, color: Colors.orange.shade900),
+                                _buildFixedDataCell('Rs.${sale.currentDealerCommission.toStringAsFixed(0)}', 150, color: Colors.deepOrange, isBold: true),
+                                _buildFixedDataCell('Rs.${sale.dealerPaidAmount.toStringAsFixed(0)}', 150, color: Colors.green, hasIcon: true),
+                                _buildFixedDataCell('Rs.${sale.dealerCommissionRemaining.toStringAsFixed(0)}', 150, color: Colors.red),
+                                _buildFixedDataCell('Rs.${sale.landownerTotalShare.toStringAsFixed(0)}', 150, color: Colors.purple.shade900),
+                                _buildFixedDataCell('Rs.${sale.landownerPaidAmount.toStringAsFixed(0)}', 150, color: Colors.purple.shade700, hasIcon: true),
+                                _buildFixedDataCell('Rs.${sale.landownerShareRemaining.toStringAsFixed(0)}', 150, color: Colors.red.shade900, isBold: true),
+                              ],
                               SizedBox(
                                 width: 120,
                                 child: Container(

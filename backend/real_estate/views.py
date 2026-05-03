@@ -7,13 +7,14 @@ from django.db.models import Sum
 from django.utils import timezone
 from .models import (
     Project, Plot, Dealer, RealEstateSale, Installment, 
-    RealEstateIncome, RealEstateExpense, DownPaymentPayment
+    RealEstateIncome, RealEstateExpense, DownPaymentPayment, InstallmentPayment
 )
 from django.http import HttpResponse
 from .serializers import (
     ProjectSerializer, PlotSerializer, DealerSerializer, 
     RealEstateSaleSerializer, InstallmentSerializer,
-    RealEstateIncomeSerializer, RealEstateExpenseSerializer
+    RealEstateIncomeSerializer, RealEstateExpenseSerializer,
+    InstallmentPaymentSerializer, DownPaymentPaymentSerializer
 )
 from posapi.permissions import IsAdmin, IsManager, IsSalesAgent, IsAccountant
 
@@ -107,6 +108,18 @@ class InstallmentViewSet(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
     filterset_fields = ['sale', 'status']
     ordering_fields = ['due_date']
+
+class InstallmentPaymentViewSet(viewsets.ModelViewSet):
+    pagination_class = None
+    permission_classes = [IsAccountant]
+    queryset = InstallmentPayment.objects.all()
+    serializer_class = InstallmentPaymentSerializer
+
+class DownPaymentPaymentViewSet(viewsets.ModelViewSet):
+    pagination_class = None
+    permission_classes = [IsAccountant]
+    queryset = DownPaymentPayment.objects.all()
+    serializer_class = DownPaymentPaymentSerializer
 
 class RealEstateIncomeViewSet(viewsets.ModelViewSet):
     pagination_class = None

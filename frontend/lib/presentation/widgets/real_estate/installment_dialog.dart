@@ -11,6 +11,7 @@ import '../../../src/models/real_estate/real_estate_sale_model.dart';
 import '../../../src/models/real_estate/installment_model.dart';
 import '../../../src/providers/real_estate_provider.dart';
 import '../../../src/services/real_estate_print_service.dart';
+import '../../../src/models/real_estate/payout_history_model.dart';
 import '../../screens/real_estate/receipt_preview_screen.dart';
 
 class InstallmentDialog extends StatefulWidget {
@@ -23,6 +24,8 @@ class InstallmentDialog extends StatefulWidget {
 }
 
 class _InstallmentDialogState extends State<InstallmentDialog> {
+  bool _showDownPaymentHistory = false;
+
   @override
   void initState() {
     super.initState();
@@ -59,7 +62,6 @@ class _InstallmentDialogState extends State<InstallmentDialog> {
             children: [
               _buildHeader(context),
               _buildSummaryHeader(context, currencyFormat),
-              _buildDownPaymentCard(context, currencyFormat),
               Flexible(child: _buildInstallmentList(context, currencyFormat)),
               _buildFooter(context),
             ],
@@ -133,7 +135,7 @@ class _InstallmentDialogState extends State<InstallmentDialog> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              _buildSummaryItem('Total Price', formatter.format(currentSale.totalPrice), AppTheme.charcoalGray),
+              _buildSummaryItem('Total Price', formatter.format(currentSale.totalPrice), Colors.black87),
               _buildSummaryItem('Paid Amount', formatter.format(totalReceived), Colors.green),
               _buildSummaryItem('Remaining', formatter.format(remaining), Colors.red),
             ],
@@ -143,7 +145,7 @@ class _InstallmentDialogState extends State<InstallmentDialog> {
     );
   }
 
-  bool _showDownPaymentHistory = false;
+
 
   Widget _buildDownPaymentCard(BuildContext context, NumberFormat formatter) {
     return Consumer<RealEstateProvider>(
@@ -225,6 +227,11 @@ class _InstallmentDialogState extends State<InstallmentDialog> {
                               icon: const Icon(Icons.print_rounded, color: Colors.green),
                               tooltip: 'Print Receipt',
                             ),
+                            IconButton(
+                              onPressed: () => setState(() => _showDownPaymentHistory = !_showDownPaymentHistory),
+                              icon: Icon(_showDownPaymentHistory ? Icons.history_toggle_off : Icons.history, color: Colors.blueGrey),
+                              tooltip: 'Payment History',
+                            ),
                           ],
                           if (!isFullyPaid)
                             ElevatedButton(
@@ -249,21 +256,43 @@ class _InstallmentDialogState extends State<InstallmentDialog> {
                   if (_showDownPaymentHistory && currentSale.downPaymentHistory.isNotEmpty) ...[
                     const Divider(height: 20),
                     ...currentSale.downPaymentHistory.map((h) => Container(
-                      padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
-                      margin: const EdgeInsets.only(bottom: 6),
                       decoration: BoxDecoration(
-                        color: Colors.blue.withOpacity(0.03),
-                        borderRadius: BorderRadius.circular(6),
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(10),
+                        boxShadow: [
+                          BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4, offset: const Offset(0, 2)),
+                        ],
                         border: Border.all(color: Colors.blue.withOpacity(0.1)),
                       ),
+                      padding: const EdgeInsets.all(12),
+                      margin: const EdgeInsets.only(bottom: 10, left: 4, right: 4),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Text(h.date, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.blueGrey)),
-                              Text(formatter.format(h.amount), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w900, color: AppTheme.primaryMaroon)),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(h.date, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.blueGrey)),
+                                  Text(formatter.format(h.amount), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w900, color: AppTheme.primaryMaroon)),
+                                ],
+                              ),
+                              Row(
+                                children: [
+                                  IconButton(
+                                    icon: const Icon(Icons.edit_outlined, size: 18, color: Colors.blue),
+                                    onPressed: () => _handleEditDownPayment(context, h, currentSale.id),
+                                    tooltip: 'Edit Payment',
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(Icons.delete_outline_rounded, size: 18, color: Colors.red),
+                                    onPressed: () => _handleDeleteDownPayment(context, h.id, currentSale.id),
+                                    tooltip: 'Delete Payment',
+                                  ),
+                                ],
+                              ),
                             ],
                           ),
                           if ((h.receiptNumber != null && h.receiptNumber!.isNotEmpty) || (h.remarks != null && h.remarks!.isNotEmpty))
@@ -301,7 +330,7 @@ class _InstallmentDialogState extends State<InstallmentDialog> {
   Widget _buildSummaryItem(String label, String value, Color color) {
     return Column(
       children: [
-        Text(label, style: TextStyle(color: AppTheme.charcoalGray.withOpacity(0.6), fontSize: 12, fontWeight: FontWeight.w600)),
+        Text(label, style: TextStyle(color: Colors.black87.withOpacity(0.6), fontSize: 12, fontWeight: FontWeight.w600)),
         const SizedBox(height: 4),
         Text(value, style: TextStyle(color: color, fontSize: 14, fontWeight: FontWeight.w900)),
       ],
@@ -320,15 +349,19 @@ class _InstallmentDialogState extends State<InstallmentDialog> {
         }
 
         return ListView.builder(
-          padding: EdgeInsets.all(context.cardPadding),
-          itemCount: provider.installments.length,
+          padding: EdgeInsets.symmetric(horizontal: context.cardPadding),
+          itemCount: provider.installments.length + 1,
           itemBuilder: (context, index) {
-            final inst = provider.installments[index];
+            if (index == 0) {
+              return _buildDownPaymentCard(context, formatter);
+            }
+            final inst = provider.installments[index - 1];
+            final actualIndex = index - 1;
             final isPaid = inst.status == 'PAID';
             final isPartial = inst.status == 'PARTIAL';
             final isPending = inst.status == 'PENDING';
 
-            final isBalloon = (index + 1) % 6 == 0;
+            final isBalloon = (actualIndex + 1) % 6 == 0;
 
             return Container(
               margin: const EdgeInsets.only(bottom: 12),
@@ -344,14 +377,17 @@ class _InstallmentDialogState extends State<InstallmentDialog> {
                   width: isBalloon ? 1.5 : 1.0,
                 ),
               ),
-              child: ListTile(
+              child: ExpansionTile(
+                shape: const RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
+                collapsedShape: const RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
+                tilePadding: const EdgeInsets.only(left: 12, right: 8),
                 leading: CircleAvatar(
                   backgroundColor: isPaid ? Colors.green : (isPartial ? Colors.orange : Colors.orange.withOpacity(0.2)),
-                  child: Text('${index + 1}', style: TextStyle(color: (isPaid || isPartial) ? Colors.white : Colors.orange.shade900, fontWeight: FontWeight.bold)),
+                  child: Text('${actualIndex + 1}', style: TextStyle(color: (isPaid || isPartial) ? Colors.white : Colors.orange.shade900, fontWeight: FontWeight.bold)),
                 ),
                 title: Row(
                   children: [
-                    Text(formatter.format(inst.amount), style: const TextStyle(fontWeight: FontWeight.w900, color: AppTheme.charcoalGray)),
+                    Text(formatter.format(inst.amount), style: const TextStyle(fontWeight: FontWeight.w900, color: Colors.black87)),
                     if (isBalloon) ...[
                       const SizedBox(width: 8),
                       Container(
@@ -372,9 +408,19 @@ class _InstallmentDialogState extends State<InstallmentDialog> {
                     ],
                   ],
                 ),
-                subtitle: Text(
-                  'Due: ${inst.dueDate}${(isPaid || isPartial) ? ' | Last Paid: ${inst.paidDate}' : ''}',
-                  style: const TextStyle(fontSize: 12),
+                subtitle: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Due: ${inst.dueDate}${(isPaid || isPartial) ? ' | Last Paid: ${inst.paidDate}' : ''}',
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                    if (inst.paymentHistory.isNotEmpty)
+                      const Text(
+                        'Click to view history',
+                        style: TextStyle(fontSize: 10, color: Colors.blue, fontWeight: FontWeight.bold),
+                      ),
+                  ],
                 ),
                 trailing: !isPending 
                   ? Row(
@@ -388,7 +434,7 @@ class _InstallmentDialogState extends State<InstallmentDialog> {
                                 builder: (context) => RealEstateReceiptPreviewScreen(
                                   sale: widget.sale,
                                   installment: inst,
-                                  installmentNumber: index + 1,
+                                  installmentNumber: actualIndex + 1,
                                 ),
                               ),
                             );
@@ -399,7 +445,7 @@ class _InstallmentDialogState extends State<InstallmentDialog> {
                           onPressed: () => RealEstatePrintService.printSingleInstallmentReceipt(
                             sale: widget.sale,
                             installment: inst,
-                            installmentNumber: index + 1,
+                            installmentNumber: actualIndex + 1,
                           ),
                           icon: const Icon(Icons.print_rounded, color: Colors.green),
                         ),
@@ -425,6 +471,64 @@ class _InstallmentDialogState extends State<InstallmentDialog> {
                       ),
                       child: const Text('Mark Paid'),
                     ),
+                children: [
+                  if (inst.paymentHistory.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('Payment History', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.blueGrey)),
+                          const SizedBox(height: 8),
+                          ...inst.paymentHistory.map((h) => Container(
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(10),
+                              boxShadow: [
+                                BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4, offset: const Offset(0, 2)),
+                              ],
+                              border: Border.all(color: Colors.grey.shade200),
+                            ),
+                            padding: const EdgeInsets.all(12),
+                            margin: const EdgeInsets.only(bottom: 10),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(h.paymentDate, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                                    Text(formatter.format(h.amount), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w900, color: AppTheme.primaryMaroon)),
+                                    if (h.remarks != null && h.remarks!.isNotEmpty)
+                                      Text(h.remarks!, style: const TextStyle(fontSize: 10, fontStyle: FontStyle.italic, color: Colors.grey)),
+                                  ],
+                                ),
+                                Row(
+                                  children: [
+                                    if (h.receiptNumber != null && h.receiptNumber!.isNotEmpty)
+                                      Padding(
+                                        padding: const EdgeInsets.only(right: 8),
+                                        child: Text('Ref: ${h.receiptNumber}', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.blueGrey)),
+                                      ),
+                                    IconButton(
+                                      icon: const Icon(Icons.edit_outlined, size: 18, color: Colors.blue),
+                                      onPressed: () => _handleEditInstallmentPayment(context, h, widget.sale.id),
+                                      tooltip: 'Edit Payment',
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(Icons.delete_outline_rounded, size: 18, color: Colors.red),
+                                      onPressed: () => _handleDeleteInstallmentPayment(context, h.id, widget.sale.id),
+                                      tooltip: 'Delete Payment',
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          )).toList(),
+                        ],
+                      ),
+                    ),
+                ],
               ),
             );
           },
@@ -483,7 +587,7 @@ class _InstallmentDialogState extends State<InstallmentDialog> {
           ElevatedButton(
             onPressed: () => Navigator.pop(context),
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.charcoalGray,
+              backgroundColor: Colors.black87,
               foregroundColor: Colors.white,
             ),
             child: const Text('Close'),
@@ -640,7 +744,7 @@ class _InstallmentDialogState extends State<InstallmentDialog> {
                       ),
                       decoration: const InputDecoration(
                         labelText: 'Receipt / Voucher Number',
-                        labelStyle: TextStyle(color: AppTheme.charcoalGray),
+                        labelStyle: TextStyle(color: Colors.black87),
                         border: OutlineInputBorder(),
                         hintText: 'Enter manual receipt number...',
                         filled: true,
@@ -660,7 +764,7 @@ class _InstallmentDialogState extends State<InstallmentDialog> {
                       ),
                       decoration: const InputDecoration(
                         labelText: 'Remarks (e.g. Cash, Bank Transfer)',
-                        labelStyle: TextStyle(color: AppTheme.charcoalGray),
+                        labelStyle: TextStyle(color: Colors.black87),
                         border: OutlineInputBorder(),
                         hintText: 'Any specific details...',
                         filled: true,
@@ -1017,5 +1121,269 @@ class _InstallmentDialogState extends State<InstallmentDialog> {
         ],
       ),
     );
+  }
+
+  void _handleDeleteDownPayment(BuildContext rootContext, String? paymentId, String? saleId) async {
+    if (paymentId == null || saleId == null) return;
+    
+    final confirm = await showDialog<bool>(
+      context: rootContext,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Payment'),
+        content: const Text('Are you sure you want to delete this down payment record? This will revert the sale balance and remove it from financial logs.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      if (!mounted) return;
+      final success = await rootContext.read<RealEstateProvider>().deleteDownPaymentPayment(paymentId, saleId: saleId);
+      if (success) {
+        if (mounted) {
+           ScaffoldMessenger.of(rootContext).showSnackBar(const SnackBar(content: Text('Payment deleted successfully'), backgroundColor: Colors.green));
+        }
+      }
+    }
+  }
+
+  void _handleDeleteInstallmentPayment(BuildContext rootContext, String? paymentId, String? saleId) async {
+    if (paymentId == null || saleId == null) return;
+    
+    final confirm = await showDialog<bool>(
+      context: rootContext,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Payment'),
+        content: const Text('Are you sure you want to delete this installment payment record? This will revert the installment balance and remove it from financial logs.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      if (!mounted) return;
+      final success = await rootContext.read<RealEstateProvider>().deleteInstallmentPayment(paymentId, saleId: saleId);
+      if (success) {
+        if (mounted) {
+           rootContext.read<RealEstateProvider>().fetchInstallments(saleId: saleId);
+           ScaffoldMessenger.of(rootContext).showSnackBar(const SnackBar(content: Text('Payment deleted successfully'), backgroundColor: Colors.green));
+        }
+      }
+    }
+  }
+
+  void _handleEditDownPayment(BuildContext rootContext, DownPaymentRec payment, String? saleId) async {
+    if (saleId == null) return;
+    final TextEditingController amountController = TextEditingController(text: payment.amount.toStringAsFixed(0));
+    final TextEditingController remarksController = TextEditingController(text: payment.remarks);
+    final TextEditingController receiptController = TextEditingController(text: payment.receiptNumber);
+
+    final result = await showDialog<Map<String, dynamic>>(
+      context: rootContext,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: const BoxDecoration(
+            color: AppTheme.primaryMaroon,
+            borderRadius: BorderRadius.only(topLeft: Radius.circular(16), topRight: Radius.circular(16)),
+          ),
+          child: const Text('Edit Down Payment', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+        ),
+        titlePadding: EdgeInsets.zero,
+        contentPadding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: amountController,
+              style: const TextStyle(color: Colors.black87, fontWeight: FontWeight.bold, fontSize: 16),
+              decoration: InputDecoration(
+                labelText: 'Amount',
+                labelStyle: const TextStyle(color: AppTheme.primaryMaroon),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                prefixIcon: const Icon(Icons.money_rounded, color: AppTheme.primaryMaroon),
+              ),
+              keyboardType: TextInputType.number,
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: receiptController,
+              style: const TextStyle(color: Colors.black87, fontSize: 16),
+              decoration: InputDecoration(
+                labelText: 'Receipt Number',
+                labelStyle: const TextStyle(color: AppTheme.primaryMaroon),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                prefixIcon: const Icon(Icons.receipt_rounded, color: AppTheme.primaryMaroon),
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: remarksController,
+              maxLines: 2,
+              style: const TextStyle(color: Colors.black87, fontSize: 16),
+              decoration: InputDecoration(
+                labelText: 'Remarks',
+                labelStyle: const TextStyle(color: AppTheme.primaryMaroon),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                prefixIcon: const Icon(Icons.notes_rounded, color: AppTheme.primaryMaroon),
+              ),
+            ),
+            const SizedBox(height: 10),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, {
+              'amount': double.tryParse(amountController.text),
+              'remarks': remarksController.text,
+              'receipt_number': receiptController.text,
+            }),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.primaryMaroon,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            child: const Text('Update'),
+          ),
+        ],
+      ),
+    );
+
+    if (result != null && result['amount'] != null) {
+      final success = await rootContext.read<RealEstateProvider>().updateDownPaymentPayment(
+        payment.id!,
+        {
+          'amount': result['amount'].toString(),
+          'remarks': result['remarks'],
+          'receipt_number': result['receipt_number'],
+        },
+        saleId: saleId,
+      );
+      if (success) {
+        if (mounted) {
+           ScaffoldMessenger.of(rootContext).showSnackBar(const SnackBar(content: Text('Payment updated successfully'), backgroundColor: Colors.green));
+        }
+      }
+    }
+  }
+
+  void _handleEditInstallmentPayment(BuildContext rootContext, InstallmentPayment payment, String? saleId) async {
+    if (saleId == null) return;
+    final TextEditingController amountController = TextEditingController(text: payment.amount.toStringAsFixed(0));
+    final TextEditingController remarksController = TextEditingController(text: payment.remarks);
+    final TextEditingController receiptController = TextEditingController(text: payment.receiptNumber);
+
+    final result = await showDialog<Map<String, dynamic>>(
+      context: rootContext,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: const BoxDecoration(
+            color: AppTheme.primaryMaroon,
+            borderRadius: BorderRadius.only(topLeft: Radius.circular(16), topRight: Radius.circular(16)),
+          ),
+          child: const Text('Edit Installment Payment', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+        ),
+        titlePadding: EdgeInsets.zero,
+        contentPadding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: amountController,
+              style: const TextStyle(color: Colors.black87, fontWeight: FontWeight.bold, fontSize: 16),
+              decoration: InputDecoration(
+                labelText: 'Amount',
+                labelStyle: const TextStyle(color: AppTheme.primaryMaroon),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                prefixIcon: const Icon(Icons.money_rounded, color: AppTheme.primaryMaroon),
+              ),
+              keyboardType: TextInputType.number,
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: receiptController,
+              style: const TextStyle(color: Colors.black87, fontSize: 16),
+              decoration: InputDecoration(
+                labelText: 'Receipt Number',
+                labelStyle: const TextStyle(color: AppTheme.primaryMaroon),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                prefixIcon: const Icon(Icons.receipt_rounded, color: AppTheme.primaryMaroon),
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: remarksController,
+              maxLines: 2,
+              style: const TextStyle(color: Colors.black87, fontSize: 16),
+              decoration: InputDecoration(
+                labelText: 'Remarks',
+                labelStyle: const TextStyle(color: AppTheme.primaryMaroon),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                prefixIcon: const Icon(Icons.notes_rounded, color: AppTheme.primaryMaroon),
+              ),
+            ),
+            const SizedBox(height: 10),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, {
+              'amount': double.tryParse(amountController.text),
+              'remarks': remarksController.text,
+              'receipt_number': receiptController.text,
+            }),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.primaryMaroon,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            child: const Text('Update'),
+          ),
+        ],
+      ),
+    );
+
+    if (result != null && result['amount'] != null) {
+      final success = await rootContext.read<RealEstateProvider>().updateInstallmentPayment(
+        payment.id!,
+        {
+          'amount': result['amount'].toString(),
+          'remarks': result['remarks'],
+          'receipt_number': result['receipt_number'],
+        },
+        saleId: saleId,
+      );
+      if (success) {
+        if (mounted) {
+           rootContext.read<RealEstateProvider>().fetchInstallments(saleId: saleId);
+           ScaffoldMessenger.of(rootContext).showSnackBar(const SnackBar(content: Text('Payment updated successfully'), backgroundColor: Colors.green));
+        }
+      }
+    }
   }
 }

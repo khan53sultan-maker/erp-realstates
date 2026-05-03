@@ -344,6 +344,55 @@ class RealEstateService {
     }
   }
 
+  Future<ApiResponse<void>> deleteInstallmentPayment(String paymentId) async {
+    try {
+      final response = await _apiClient.delete('${ApiConfig.realEstateInstallmentPayments}$paymentId/');
+      if (response.statusCode == 204) {
+        return ApiResponse(success: true, message: 'Payment deleted');
+      }
+      return ApiResponse(success: false, message: 'Failed to delete payment');
+    } catch (e) {
+      return ApiResponse(success: false, message: e.toString());
+    }
+  }
+
+  Future<ApiResponse<void>> deleteDownPaymentPayment(String paymentId) async {
+    try {
+      final response = await _apiClient.delete('${ApiConfig.realEstateDownPaymentPayments}$paymentId/');
+      if (response.statusCode == 204) {
+        return ApiResponse(success: true, message: 'Payment deleted');
+      }
+      return ApiResponse(success: false, message: 'Failed to delete payment');
+    } catch (e) {
+      return ApiResponse(success: false, message: e.toString());
+    }
+  }
+
+
+  Future<ApiResponse<void>> updateInstallmentPayment(String paymentId, Map<String, dynamic> data) async {
+    try {
+      final response = await _apiClient.patch('${ApiConfig.realEstateInstallmentPayments}$paymentId/', data: data);
+      if (response.statusCode == 200) {
+        return ApiResponse(success: true, message: 'Payment updated');
+      }
+      return ApiResponse(success: false, message: 'Failed to update payment');
+    } catch (e) {
+      return ApiResponse(success: false, message: e.toString());
+    }
+  }
+
+  Future<ApiResponse<void>> updateDownPaymentPayment(String paymentId, Map<String, dynamic> data) async {
+    try {
+      final response = await _apiClient.patch('${ApiConfig.realEstateDownPaymentPayments}$paymentId/', data: data);
+      if (response.statusCode == 200) {
+        return ApiResponse(success: true, message: 'Payment updated');
+      }
+      return ApiResponse(success: false, message: 'Failed to update payment');
+    } catch (e) {
+      return ApiResponse(success: false, message: e.toString());
+    }
+  }
+
   // --- Incomes ---
   Future<ApiResponse<List<RealEstateIncome>>> getIncomes({String? projectId, String? type}) async {
     try {

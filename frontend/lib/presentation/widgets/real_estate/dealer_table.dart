@@ -5,6 +5,7 @@ import '../../../src/providers/real_estate_provider.dart';
 import '../../../src/theme/app_theme.dart';
 import '../../../src/utils/responsive_breakpoints.dart';
 import '../../../src/models/real_estate/dealer_model.dart';
+import '../../../src/providers/auth_provider.dart';
 import 'add_dealer_dialog.dart';
 
 class DealerTable extends StatefulWidget {
@@ -31,12 +32,9 @@ class _DealerTableState extends State<DealerTable> {
     return Consumer<RealEstateProvider>(
       builder: (context, provider, child) {
         final dealersToShow = widget.dealers ?? provider.dealers;
-
-        if (dealersToShow.isEmpty) {
-          return Center(child: Text('No dealers found', style: TextStyle(color: AppTheme.charcoalGray.withOpacity(0.5))));
-        }
-
-        const double totalTableWidth = 1100.0;
+        final userRole = context.read<AuthProvider>().currentUser?.role ?? 'ADMIN';
+        final isManager = userRole == 'MANAGER';
+        final double totalTableWidth = isManager ? 600.0 : 1100.0;
 
         return Container(
           decoration: BoxDecoration(
@@ -83,11 +81,13 @@ class _DealerTableState extends State<DealerTable> {
                             _buildHeaderCell('Name', 150),
                             _buildHeaderCell('Type', 100),
                             _buildHeaderCell('Phone', 120),
-                            _buildHeaderCell('Comm. %', 100),
+                            if (!isManager) _buildHeaderCell('Comm. %', 100),
                             _buildHeaderCell('Sales', 80),
-                            _buildHeaderCell('Earned', 130),
-                            _buildHeaderCell('Paid', 130),
-                            _buildHeaderCell('Pending', 130),
+                            if (!isManager) ...[
+                              _buildHeaderCell('Earned', 130),
+                              _buildHeaderCell('Paid', 130),
+                              _buildHeaderCell('Pending', 130),
+                            ],
                             _buildHeaderCell('Actions', 100),
                           ],
                         ),
@@ -109,11 +109,13 @@ class _DealerTableState extends State<DealerTable> {
                               _buildDataCell(dealer.name, 150, isBold: true),
                               SizedBox(width: 100, child: Center(child: _buildTypeChip(dealer.type))),
                               _buildDataCell(dealer.phone, 120),
-                              _buildDataCell('${dealer.commissionPercentage}%', 100),
+                              if (!isManager) _buildDataCell('${dealer.commissionPercentage}%', 100),
                               _buildDataCell(dealer.totalSalesCount.toString(), 80),
-                              _buildDataCell('Rs.${dealer.totalCommissionEarned.toStringAsFixed(0)}', 130, isBold: true),
-                              _buildDataCell('Rs.${dealer.paidAmount.toStringAsFixed(0)}', 130, color: Colors.green),
-                              _buildDataCell('Rs.${dealer.pendingAmount.toStringAsFixed(0)}', 130, color: AppTheme.primaryMaroon, isBold: true),
+                              if (!isManager) ...[
+                                _buildDataCell('Rs.${dealer.totalCommissionEarned.toStringAsFixed(0)}', 130, isBold: true),
+                                _buildDataCell('Rs.${dealer.paidAmount.toStringAsFixed(0)}', 130, color: Colors.green),
+                                _buildDataCell('Rs.${dealer.pendingAmount.toStringAsFixed(0)}', 130, color: AppTheme.primaryMaroon, isBold: true),
+                              ],
                               SizedBox(
                                 width: 100,
                                 child: Row(

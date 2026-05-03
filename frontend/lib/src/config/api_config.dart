@@ -469,6 +469,8 @@ class ApiConfig {
   static const String realEstateReportsSummary = '/real-estate/reports/summary/';
   static const String realEstateProjectProfitReport = '/real-estate/reports/project_profit/';
   static const String realEstateDashboard = '/real-estate/reports/dashboard/';
+  static const String realEstateInstallmentPayments = '/real-estate/installment-payments/';
+  static const String realEstateDownPaymentPayments = '/real-estate/downpayment-payments/';
 
   // Payables API endpoints
   static const String payables = '/payables/';

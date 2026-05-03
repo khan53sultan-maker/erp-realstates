@@ -9,6 +9,7 @@ import '../../../src/theme/app_theme.dart';
 import '../../../src/utils/responsive_breakpoints.dart';
 import '../../../src/models/real_estate/real_estate_sale_model.dart';
 import '../../../src/providers/real_estate_provider.dart';
+import '../../../src/providers/auth_provider.dart';
 import '../../../src/providers/customer_provider.dart';
 import '../../../src/models/real_estate/plot_model.dart';
 import '../../../src/models/real_estate/project_model.dart';
@@ -999,7 +1000,7 @@ class _AddSaleDialogState extends State<AddSaleDialog> {
                     ),
                   ),
                   
-                  if (_selectedDealerId != null) ...[
+                  if (_selectedDealerId != null && context.read<AuthProvider>().currentUser?.role != 'MANAGER') ...[
                     SizedBox(height: context.smallPadding),
                     // Dealer Section
                     Container(

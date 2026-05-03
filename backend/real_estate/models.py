@@ -570,6 +570,7 @@ class RealEstateIncome(models.Model):
     date = models.DateField(default=_today)
     description = models.TextField(blank=True, null=True)
     sale = models.ForeignKey(RealEstateSale, on_delete=models.SET_NULL, null=True, blank=True, related_name='income_entries')
+    source_payment_id = models.UUIDField(null=True, blank=True, help_text="ID of the specific payment record that created this income")
     
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -610,6 +611,15 @@ class RealEstateIncome(models.Model):
                     remarks=f"Income Commission: {self.description or 'Unspecified'}"
                 )
 
+    def delete(self, *args, **kwargs):
+        if self.sale and self.income_type == 'COMMISSION_RECEIVED':
+            # Reverse the commission received on sale
+            self.sale.landowner_commission_received = (self.sale.landowner_commission_received or 0) - self.amount
+            RealEstateSale.objects.filter(pk=self.sale.pk).update(
+                landowner_commission_received=self.sale.landowner_commission_received
+            )
+        super().delete(*args, **kwargs)
+
 class RealEstateExpense(models.Model):
     """Module F: Expense Section"""
     EXPENSE_CATEGORY_CHOICES = [
@@ -629,6 +639,7 @@ class RealEstateExpense(models.Model):
     date = models.DateField(default=_today)
     description = models.TextField(blank=True, null=True)
     sale = models.ForeignKey(RealEstateSale, on_delete=models.SET_NULL, null=True, blank=True, related_name='payout_expenses')
+    source_payment_id = models.UUIDField(null=True, blank=True, help_text="ID of the specific payment record that created this expense")
     
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -673,6 +684,20 @@ class RealEstateExpense(models.Model):
                         sale=self.sale, amount=diff, date=self.date,
                         remarks=f"Expense Commission: {self.description or 'Unspecified'}"
                     )
+
+    def delete(self, *args, **kwargs):
+        if self.sale and self.category in ['LANDOWNER_PAYOUT', 'COMMISSION_PAID']:
+            if self.category == 'LANDOWNER_PAYOUT':
+                self.sale.landowner_paid_amount = (self.sale.landowner_paid_amount or 0) - self.amount
+                RealEstateSale.objects.filter(pk=self.sale.pk).update(
+                    landowner_paid_amount=self.sale.landowner_paid_amount
+                )
+            elif self.category == 'COMMISSION_PAID':
+                self.sale.dealer_paid_amount = (self.sale.dealer_paid_amount or 0) - self.amount
+                RealEstateSale.objects.filter(pk=self.sale.pk).update(
+                    dealer_paid_amount=self.sale.dealer_paid_amount
+                )
+        super().delete(*args, **kwargs)
 
 class Installment(models.Model):
     """Installment tracking"""
@@ -730,7 +755,9 @@ class Installment(models.Model):
                 income_type='INSTALLMENT_PAYMENT',
                 amount=diff,
                 date=self.paid_date or timezone.now().date(),
-                description=desc
+                description=desc,
+                sale=self.sale,
+                source_payment_id=InstallmentPayment.objects.filter(installment=self).last().id
             )
             
             # Reset remarks after saving so they don't stick around if updated again without remarks
@@ -755,6 +782,80 @@ class InstallmentPayment(models.Model):
     def __str__(self):
         return f"Payment of {self.amount} on {self.payment_date} for {self.installment}"
 
+    def save(self, *args, **kwargs):
+        is_new = self._state.adding
+        super().save(*args, **kwargs)
+        
+        # Recalculate Installment totals
+        history = self.installment.payment_history.all()
+        total_paid = history.aggregate(models.Sum('amount'))['amount__sum'] or Decimal('0.00')
+        last_payment = history.order_by('payment_date').last()
+        
+        self.installment.paid_amount = total_paid
+        self.installment.paid_date = last_payment.payment_date if last_payment else None
+        
+        if self.installment.paid_amount >= self.installment.amount:
+            self.installment.status = 'PAID'
+        elif self.installment.paid_amount > 0:
+            self.installment.status = 'PARTIAL'
+        else:
+            self.installment.status = 'PENDING'
+        
+        Installment.objects.filter(pk=self.installment.pk).update(
+            paid_amount=self.installment.paid_amount,
+            status=self.installment.status,
+            paid_date=self.installment.paid_date
+        )
+
+        # Handle Income Record
+        if is_new:
+            RealEstateIncome.objects.get_or_create(
+                source_payment_id=self.id,
+                defaults={
+                    'project': self.installment.sale.plot.project,
+                    'income_type': 'INSTALLMENT_PAYMENT',
+                    'amount': self.amount,
+                    'date': self.payment_date,
+                    'description': f"Installment payment for {self.installment.sale.plot.plot_number}",
+                    'sale': self.installment.sale
+                }
+            )
+        else:
+            RealEstateIncome.objects.filter(source_payment_id=self.id).update(
+                amount=self.amount,
+                date=self.payment_date
+            )
+
+    def delete(self, *args, **kwargs):
+        installment = self.installment
+        super().delete(*args, **kwargs)
+        
+        # Recalculate after delete
+        history = installment.payment_history.all()
+        total_paid = history.aggregate(models.Sum('amount'))['amount__sum'] or Decimal('0.00')
+        last_payment = history.order_by('payment_date').last()
+        
+        installment.paid_amount = total_paid
+        installment.paid_date = last_payment.payment_date if last_payment else None
+        
+        if installment.paid_amount >= installment.amount:
+            installment.status = 'PAID'
+        elif installment.paid_amount > 0:
+            installment.status = 'PARTIAL'
+        else:
+            installment.status = 'PENDING'
+        
+        Installment.objects.filter(pk=installment.pk).update(
+            paid_amount=installment.paid_amount,
+            status=installment.status,
+            paid_date=installment.paid_date
+        )
+
+        # 2. Delete linked Income
+        RealEstateIncome.objects.filter(source_payment_id=self.id).delete()
+        
+        super().delete(*args, **kwargs)
+
 
 class DownPaymentPayment(models.Model):
     """History of partial payments for a down payment"""
@@ -773,15 +874,17 @@ class DownPaymentPayment(models.Model):
         is_new = self._state.adding
         super().save(*args, **kwargs)
         
-        if is_new:
-            # 1. Update sale received_down_payment
-            # Use update to avoid triggering full sale save which might be complex
-            self.sale.received_down_payment = (self.sale.received_down_payment or Decimal('0.00')) + self.amount
-            RealEstateSale.objects.filter(pk=self.sale.pk).update(
-                received_down_payment=self.sale.received_down_payment
-            )
+        # Recalculate Sale totals
+        history = self.sale.down_payment_history.all()
+        total_paid = history.aggregate(models.Sum('amount'))['amount__sum'] or Decimal('0.00')
+        
+        self.sale.received_down_payment = total_paid
+        RealEstateSale.objects.filter(pk=self.sale.pk).update(
+            received_down_payment=self.sale.received_down_payment
+        )
 
-            # 2. Record in Global Income
+        # Handle Income Record
+        if is_new:
             desc = f"Down payment for {self.sale.plot.plot_number} - {self.sale.customer.name}"
             if self.remarks:
                 desc += f" ({self.remarks})"
@@ -792,8 +895,32 @@ class DownPaymentPayment(models.Model):
                 amount=self.amount,
                 date=self.payment_date,
                 description=desc,
-                sale=self.sale
+                sale=self.sale,
+                source_payment_id=self.id
+            )
+        else:
+            RealEstateIncome.objects.filter(source_payment_id=self.id).update(
+                amount=self.amount,
+                date=self.payment_date
             )
 
     def __str__(self):
         return f"Down Payment of {self.amount} on {self.payment_date} for {self.sale}"
+
+    def delete(self, *args, **kwargs):
+        sale = self.sale
+        super().delete(*args, **kwargs)
+        
+        # Recalculate after delete
+        history = sale.down_payment_history.all()
+        total_paid = history.aggregate(models.Sum('amount'))['amount__sum'] or Decimal('0.00')
+        
+        sale.received_down_payment = total_paid
+        RealEstateSale.objects.filter(pk=sale.pk).update(
+            received_down_payment=sale.received_down_payment
+        )
+
+        # 2. Delete linked Income
+        RealEstateIncome.objects.filter(source_payment_id=self.id).delete()
+        
+        super().delete(*args, **kwargs)

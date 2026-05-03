@@ -6,6 +6,7 @@ import '../../../src/theme/app_theme.dart';
 import '../../../src/utils/responsive_breakpoints.dart';
 import '../../../src/models/real_estate/dealer_model.dart';
 import '../../../src/providers/real_estate_provider.dart';
+import '../../../src/providers/auth_provider.dart';
 
 class AddDealerDialog extends StatefulWidget {
   final RealEstateDealer? dealer;
@@ -74,7 +75,8 @@ class _AddDealerDialogState extends State<AddDealerDialog> {
                   onChanged: (v) => setState(() => _type = v!),
                 ),
                 SizedBox(height: context.smallPadding),
-                _buildField(l10n.commission + ' %', _commissionController, icon: Icons.percent, isNumber: true, hint: '2.0'),
+                if (context.read<AuthProvider>().currentUser?.role != 'MANAGER')
+                  _buildField(l10n.commission + ' %', _commissionController, icon: Icons.percent, isNumber: true, hint: '2.0'),
               ],
             ),
           ),

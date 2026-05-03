@@ -442,6 +442,118 @@ class RealEstateProvider with ChangeNotifier {
     }
   }
 
+  Future<bool> deleteInstallmentPayment(String paymentId, {String? saleId}) async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    final response = await _service.deleteInstallmentPayment(paymentId);
+    if (response.success) {
+      if (saleId != null) {
+        final saleResponse = await _service.getSales();
+        if (saleResponse.success) {
+           final sale = saleResponse.data?.firstWhere((s) => s.id == saleId, orElse: () => throw Exception('Sale not found'));
+           if (sale != null) {
+             final index = _sales.indexWhere((s) => s.id == saleId);
+             if (index != -1) _sales[index] = sale;
+           }
+        }
+      }
+      _isLoading = false;
+      notifyListeners();
+      return true;
+    } else {
+      _errorMessage = response.message;
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
+  Future<bool> deleteDownPaymentPayment(String paymentId, {String? saleId}) async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    final response = await _service.deleteDownPaymentPayment(paymentId);
+    if (response.success) {
+      if (saleId != null) {
+        final saleResponse = await _service.getSales();
+        if (saleResponse.success) {
+           final sale = saleResponse.data?.firstWhere((s) => s.id == saleId, orElse: () => throw Exception('Sale not found'));
+           if (sale != null) {
+             final index = _sales.indexWhere((s) => s.id == saleId);
+             if (index != -1) _sales[index] = sale;
+           }
+        }
+      }
+      _isLoading = false;
+      notifyListeners();
+      return true;
+    } else {
+      _errorMessage = response.message;
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
+  Future<bool> updateInstallmentPayment(String paymentId, Map<String, dynamic> data, {String? saleId}) async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    final response = await _service.updateInstallmentPayment(paymentId, data);
+    if (response.success) {
+      if (saleId != null) {
+        final saleResponse = await _service.getSales();
+        if (saleResponse.success) {
+           final sale = saleResponse.data?.firstWhere((s) => s.id == saleId, orElse: () => throw Exception('Sale not found'));
+           if (sale != null) {
+             final index = _sales.indexWhere((s) => s.id == saleId);
+             if (index != -1) _sales[index] = sale;
+           }
+        }
+      }
+      _isLoading = false;
+      notifyListeners();
+      return true;
+    } else {
+      _errorMessage = response.message;
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
+  Future<bool> updateDownPaymentPayment(String paymentId, Map<String, dynamic> data, {String? saleId}) async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    final response = await _service.updateDownPaymentPayment(paymentId, data);
+    if (response.success) {
+      if (saleId != null) {
+        final saleResponse = await _service.getSales();
+        if (saleResponse.success) {
+           final sale = saleResponse.data?.firstWhere((s) => s.id == saleId, orElse: () => throw Exception('Sale not found'));
+           if (sale != null) {
+             final index = _sales.indexWhere((s) => s.id == saleId);
+             if (index != -1) _sales[index] = sale;
+           }
+        }
+      }
+      _isLoading = false;
+      notifyListeners();
+      return true;
+    } else {
+      _errorMessage = response.message;
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
   // --- Incomes ---
   Future<void> fetchIncomes({String? projectId, String? type}) async {
     _isLoading = true;

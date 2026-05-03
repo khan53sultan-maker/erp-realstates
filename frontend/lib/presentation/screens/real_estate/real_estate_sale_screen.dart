@@ -101,8 +101,10 @@ class _RealEstateSalePageState extends State<RealEstateSalePage> {
                       if (!isManager) _summaryCard('NET PROFIT', coCommRecv - dealerCommPaid, Colors.indigo, Icons.trending_up),
                       if (!isManager) _summaryCard('COMPANY COMMISSION', totalCoComm, Colors.purple.shade700, Icons.business_center),
                       if (!isManager) _summaryCard('COMM. RECEIVED', coCommRecv, Colors.teal, Icons.download_done),
-                      _summaryCard('DEALER COMMISSIONS', totalDealerComm, Colors.orange.shade800, Icons.groups_rounded),
-                      _summaryCard('DEALER REMAINING', totalDealerComm - dealerCommPaid, Colors.deepOrange, Icons.history),
+                      if (!isManager) ...[
+                        _summaryCard('DEALER COMMISSIONS', totalDealerComm, Colors.orange.shade800, Icons.groups_rounded),
+                        _summaryCard('DEALER REMAINING', totalDealerComm - dealerCommPaid, Colors.deepOrange, Icons.history),
+                      ],
                     ],
                   ),
                   const SizedBox(height: 24),
